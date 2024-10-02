@@ -1,10 +1,10 @@
-import { FullscreenAudioVideoPlayerComponent } from "@/components/fullscreen-audio-video-player";
+import  AdvancedSyncedPlayer  from "@/components/advanced-synced-player";
 
 
 export default function Home() {
   return (
 <main>
-  <FullscreenAudioVideoPlayerComponent/>
+  <AdvancedSyncedPlayer/>
 </main>
   );
 }
