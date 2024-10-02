@@ -8,7 +8,9 @@
 
 #videos
 /public/videos/
-/public/audio/
+
+#audios
+/public/audios/
 
 # testing
 /coverage
