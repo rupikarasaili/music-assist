@@ -30,7 +30,6 @@ const tracks = [
       { id: "1-2", name: "No Bass", file: "/audios/Happy Komp No bass.wav" },
       { id: "1-3", name: "Orchestra", file: "/audios/Happy Orkester.wav" },
     ],
-    bpm: 212,
   },
 ];
 
@@ -75,7 +74,7 @@ export default function AdvancedSyncedPlayer() {
         clearInterval(progressIntervalRef.current);
       }
     };
-  }, []);
+  }, [selectedTrack.subTracks.length]);
 
   useEffect(() => {
     const initialVolumes: Record<string, number> = {};
@@ -112,7 +111,13 @@ export default function AdvancedSyncedPlayer() {
       return;
 
     // Stop and remove existing source nodes
-    Object.values(sourceNodesRef.current).forEach((node) => node.stop());
+    Object.values(sourceNodesRef.current).forEach((node) => {
+      try {
+        node.stop();
+      } catch (error) {
+        console.warn("Failed to stop node:", error);
+      }
+    });
     sourceNodesRef.current = {};
     gainNodesRef.current = {};
 
@@ -155,7 +160,13 @@ export default function AdvancedSyncedPlayer() {
 
     pauseTimeRef.current =
       audioContextRef.current.currentTime - (startTimeRef.current || 0);
-    Object.values(sourceNodesRef.current).forEach((node) => node.stop());
+    Object.values(sourceNodesRef.current).forEach((node) => {
+      try {
+        node.stop();
+      } catch (error) {
+        console.warn("Failed to stop node:", error);
+      }
+    });
     Object.values(videoRefs.current).forEach((video) => {
       if (video) {
         video.pause();
@@ -390,7 +401,7 @@ export default function AdvancedSyncedPlayer() {
                 </label>
                 <Slider
                   id={subTrack.id}
-                  className="h-24"
+                  className="h-24 w-4"
                   min={0}
                   max={1}
                   step={0.01}
