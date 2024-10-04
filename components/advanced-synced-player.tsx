@@ -127,7 +127,11 @@ export default function AdvancedSyncedPlayer() {
       const gainNode = audioContextRef.current.createGain();
       sourceNode.buffer = audioBuffer;
       sourceNode.connect(gainNode);
-      gainNode.connect(mergerNodeRef.current);
+
+      // Connect gainNode to both channels of the mergerNode
+      gainNode.connect(mergerNodeRef.current, 0, 0); // Connect to left channel
+      gainNode.connect(mergerNodeRef.current, 0, 1); // Connect to right channel
+
       sourceNode.playbackRate.value = playbackRate;
       gainNode.gain.value = subTrackVolumes[subTrack.id] * masterVolume;
       sourceNodesRef.current[subTrack.id] = sourceNode;
