@@ -87,9 +87,13 @@ export default function AdvancedSyncedPlayer() {
   useEffect(() => {
     const video = videoRefs.current[selectedVideo.id];
     if (video) {
-      const updateDuration = () => setDuration(video.duration);
+      const updateDuration = () => {
+        setDuration(video.duration);
+      };
       video.addEventListener("loadedmetadata", updateDuration);
-      return () => video.removeEventListener("loadedmetadata", updateDuration);
+      return () => {
+        video.removeEventListener("loadedmetadata", updateDuration);
+      };
     }
   }, [selectedVideo]);
 
