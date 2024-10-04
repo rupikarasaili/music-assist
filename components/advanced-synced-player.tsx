@@ -11,6 +11,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlayIcon, PauseIcon, Volume2Icon, ExpandIcon } from "lucide-react";
+import { openDB } from "idb";
+
+// Define a type for the data
+type MediaData = {
+  // Add specific properties of the data here
+  title: string;
+  duration: number;
+  // Add other properties as needed
+};
 
 // Mock data for tracks, sub-tracks, and videos
 const tracks = [
@@ -32,6 +41,42 @@ const tracks = [
     ],
   },
 ];
+
+// Register the service worker
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => {
+        console.log(
+          "Service Worker registered with scope:",
+          registration.scope
+        );
+      })
+      .catch((error) => {
+        console.error("Service Worker registration failed:", error);
+      });
+  });
+}
+
+// Open IndexedDB
+const dbPromise = openDB("media-store", 1, {
+  upgrade(db) {
+    db.createObjectStore("media");
+  },
+});
+
+// Function to load data from IndexedDB
+const loadFromIndexedDB = async (key: string) => {
+  const db = await dbPromise;
+  return db.get("media", key);
+};
+
+// Function to save data to IndexedDB
+const saveToIndexedDB = async (key: string, data: MediaData) => {
+  const db = await dbPromise;
+  await db.put("media", data, key);
+};
 
 export default function AdvancedSyncedPlayer() {
   const [selectedTrack, setSelectedTrack] = useState(tracks[0]);
@@ -87,18 +132,25 @@ export default function AdvancedSyncedPlayer() {
   useEffect(() => {
     const video = videoRefs.current[selectedVideo.id];
     if (video) {
-      const updateDuration = () => setDuration(video.duration);
+      const updateDuration = () => {
+        setDuration(video.duration);
+        if (video.readyState >= 4) {
+          video.play();
+        }
+      };
       video.addEventListener("loadedmetadata", updateDuration);
       return () => video.removeEventListener("loadedmetadata", updateDuration);
     }
   }, [selectedVideo]);
 
   const loadAudio = async (file: string) => {
-    const response = await fetch(file);
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await audioContextRef.current!.decodeAudioData(
-      arrayBuffer
-    );
+    let audioBuffer = await loadFromIndexedDB(file);
+    if (!audioBuffer) {
+      const response = await fetch(file); // This fetch will be intercepted by the service worker
+      const arrayBuffer = await response.arrayBuffer();
+      audioBuffer = await audioContextRef.current!.decodeAudioData(arrayBuffer);
+      await saveToIndexedDB(file, audioBuffer);
+    }
     return audioBuffer;
   };
 
