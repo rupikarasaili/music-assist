@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlayIcon, PauseIcon, Volume2Icon, ExpandIcon } from "lucide-react";
+import { saveMediaToIndexedDB, getMediaFromIndexedDB } from '../indexedDBUtils.js';
 
 // Mock data for tracks, sub-tracks, and videos
 const tracks = [
@@ -21,9 +22,9 @@ const tracks = [
       {
         id: "v1",
         name: "Bass Cam",
-        file: "/videos/Happy Bass 1 Scroll score.mov",
+        file: encodeURI("https://creativearstorage.blob.core.windows.net/webmfiles/Happy Bass 1 Scroll score.webm"),
       },
-      { id: "v2", name: "Score Cam", file: "/videos/Happy Video Bass 1.mp4" },
+      { id: "v2", name: "Score Cam", file: encodeURI("https://creativearstorage.blob.core.windows.net/webmfiles/Happy Video Bass 1.webm" )},
     ],
     subTracks: [
       { id: "1-1", name: "Bass", file: "/audios/Happy Bass 1 Audio.wav" },
@@ -93,6 +94,28 @@ export default function AdvancedSyncedPlayer() {
     }
   }, [selectedVideo]);
 
+  useEffect(() => {
+    const loadVideoWithCache = async () => {
+      const videoUrlBlob = await loadVideo(selectedVideo.file);
+  
+      // Check if the videoBlob is not null before setting the src
+      if (videoUrlBlob) {
+        const videoElement = videoRefs.current[selectedVideo.id];
+        if (videoElement) {
+          videoElement.src = videoUrlBlob;
+        }
+      } else {
+        console.error("Failed to load video");
+      }
+    };
+  
+    loadVideoWithCache();
+  }, [selectedVideo]);
+  
+  
+  
+  
+  
   const loadAudio = async (file: string) => {
     const response = await fetch(file);
     const arrayBuffer = await response.arrayBuffer();
@@ -101,7 +124,36 @@ export default function AdvancedSyncedPlayer() {
     );
     return audioBuffer;
   };
-
+  
+  const loadVideo = async (videoUrl: string) => {
+    let videoBlob = await getMediaFromIndexedDB(videoUrl);
+  
+    if (!videoBlob) {
+      try {
+        const response = await fetch(videoUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch video: ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        await saveMediaToIndexedDB(videoUrl, blob);
+        videoBlob = blob;
+      } catch (error) {
+        console.error("Error fetching video:", error);
+        return null;  // Explicitly returning null if fetch fails
+      }
+    }
+  
+    // Ensure the blob is never null before creating a URL
+    if (videoBlob) {
+      const videoUrlBlob = URL.createObjectURL(videoBlob);
+      return videoUrlBlob;
+    }
+  
+    return null;  // Return null as fallback
+  };
+  
+  
+  
   const playAudio = async () => {
     if (
       !audioContextRef.current ||
@@ -286,16 +338,15 @@ export default function AdvancedSyncedPlayer() {
     >
       {selectedTrack.videos.map((video) => (
         <video
-          key={video.id}
-          ref={(el) => {
-            videoRefs.current[video.id] = el;
-          }}
-          src={video.file}
-          className={`absolute inset-0 w-full h-full object-cover ${
-            video.id === selectedVideo.id ? "block" : "hidden"
-          }`}
-          playsInline
-        />
+    key={video.id}
+    ref={(el) => {
+      videoRefs.current[video.id] = el;
+    }}
+    className={`absolute inset-0 w-full h-full object-cover ${
+      video.id === selectedVideo.id ? "block" : "hidden"
+    }`}
+    playsInline
+  />
       ))}
 
       <div
