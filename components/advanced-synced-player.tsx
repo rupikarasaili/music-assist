@@ -1,34 +1,40 @@
-"use client";
+'use client';
 
-import React, { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import React, { useState, useRef, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { PlayIcon, PauseIcon, Volume2Icon, ExpandIcon } from "lucide-react";
+} from '@/components/ui/select';
+import {
+  PlayIcon,
+  PauseIcon,
+  Volume2Icon,
+  ExpandIcon,
+  Snail,
+} from 'lucide-react';
 
 // Mock data for tracks, sub-tracks, and videos
 const tracks = [
   {
-    id: "1",
-    name: "Happy - Pharell Williams",
+    id: '1',
+    name: 'Happy - Pharell Williams',
     videos: [
       {
-        id: "v1",
-        name: "Bass Cam",
-        file: "/videos/Happy Bass 1 Scroll score.mov",
+        id: 'v1',
+        name: 'Bass Cam',
+        file: '/videos/Happy Bass 1 Scroll score.mov',
       },
-      { id: "v2", name: "Score Cam", file: "/videos/Happy Video Bass 1.mp4" },
+      { id: 'v2', name: 'Score Cam', file: '/videos/Happy Video Bass 1.mp4' },
     ],
     subTracks: [
-      { id: "1-1", name: "Bass", file: "/audios/Happy Bass 1 Audio.wav" },
-      { id: "1-2", name: "No Bass", file: "/audios/Happy Komp No bass.wav" },
-      { id: "1-3", name: "Orchestra", file: "/audios/Happy Orkester.wav" },
+      { id: '1-1', name: 'Bass', file: '/audios/Happy Bass 1 Audio.wav' },
+      { id: '1-2', name: 'No Bass', file: '/audios/Happy Komp No bass.wav' },
+      { id: '1-3', name: 'Orchestra', file: '/audios/Happy Orkester.wav' },
     ],
   },
 ];
@@ -90,9 +96,9 @@ export default function AdvancedSyncedPlayer() {
       const updateDuration = () => {
         setDuration(video.duration);
       };
-      video.addEventListener("loadedmetadata", updateDuration);
+      video.addEventListener('loadedmetadata', updateDuration);
       return () => {
-        video.removeEventListener("loadedmetadata", updateDuration);
+        video.removeEventListener('loadedmetadata', updateDuration);
       };
     }
   }, [selectedVideo]);
@@ -119,7 +125,7 @@ export default function AdvancedSyncedPlayer() {
       try {
         node.stop();
       } catch (error) {
-        console.warn("Failed to stop node:", error);
+        console.warn('Failed to stop node:', error);
       }
     });
     sourceNodesRef.current = {};
@@ -172,7 +178,7 @@ export default function AdvancedSyncedPlayer() {
       try {
         node.stop();
       } catch (error) {
-        console.warn("Failed to stop node:", error);
+        console.warn('Failed to stop node:', error);
       }
     });
     Object.values(videoRefs.current).forEach((video) => {
@@ -280,13 +286,13 @@ export default function AdvancedSyncedPlayer() {
   const formatTime = (timeInSeconds: number) => {
     const minutes = Math.floor(timeInSeconds / 60);
     const seconds = Math.floor(timeInSeconds % 60);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-screen bg-black overflow-hidden"
+      className='relative w-full h-screen bg-black overflow-hidden'
     >
       {selectedTrack.videos.map((video) => (
         <video
@@ -296,7 +302,7 @@ export default function AdvancedSyncedPlayer() {
           }}
           src={video.file}
           className={`absolute inset-0 w-full h-full object-cover ${
-            video.id === selectedVideo.id ? "block" : "hidden"
+            video.id === selectedVideo.id ? 'block' : 'hidden'
           }`}
           playsInline
         />
@@ -304,39 +310,39 @@ export default function AdvancedSyncedPlayer() {
 
       <div
         className={`absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-300 ${
-          showControls ? "opacity-100" : "opacity-0"
+          showControls ? 'opacity-100' : 'opacity-0'
         }`}
         onMouseEnter={() => setShowControls(true)}
         onMouseLeave={() => setShowControls(false)}
       >
-        <div className="absolute bottom-0 left-0 right-0 p-4 space-y-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-white text-sm">
+        <div className='absolute bottom-0 left-0 right-0 p-4 space-y-4'>
+          <div className='flex items-center space-x-2'>
+            <span className='text-white text-sm'>
               {formatTime(progress * duration)}
             </span>
             <Slider
-              className="flex-1"
+              className='flex-1'
               min={0}
               max={1}
               step={0.001}
               value={[progress]}
               onValueChange={([value]) => handleProgressChange(value)}
             />
-            <span className="text-white text-sm">{formatTime(duration)}</span>
+            <span className='text-white text-sm'>{formatTime(duration)}</span>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <Button onClick={togglePlayPause} variant="outline" size="icon">
+          <div className='flex items-center space-x-4'>
+            <Button onClick={togglePlayPause} variant='outline' size='icon'>
               {isPlaying ? (
-                <PauseIcon className="h-6 w-6" />
+                <PauseIcon className='h-6 w-6' />
               ) : (
-                <PlayIcon className="h-6 w-6" />
+                <PlayIcon className='h-6 w-6' />
               )}
             </Button>
-            <div className="flex items-center space-x-2 flex-1">
-              <Volume2Icon className="h-4 w-4 text-white" />
+            <div className='flex items-center space-x-2 flex-1'>
+              <Volume2Icon className='h-4 w-4 text-white' />
               <Slider
-                className="w-24"
+                className='w-24'
                 min={0}
                 max={1}
                 step={0.01}
@@ -344,34 +350,40 @@ export default function AdvancedSyncedPlayer() {
                 onValueChange={([value]) => handleMasterVolumeChange(value)}
               />
             </div>
-            <Select
-              value={playbackRate.toString()}
-              onValueChange={(value) => handleSpeedChange(parseFloat(value))}
-            >
-              <SelectTrigger className="w-[100px] bg-white/10 border-white/20 text-white">
-                <SelectValue placeholder="Speed" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.25">0.25x</SelectItem>
-                <SelectItem value="0.5">0.5x</SelectItem>
-                <SelectItem value="0.75">0.75x</SelectItem>
-                <SelectItem value="1">1x</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={toggleFullscreen} variant="outline" size="icon">
-              <ExpandIcon className="h-6 w-6" />
+            <Snail className='size-4 text-white' />
+            <div className='flex gap-x-2'>
+              <Slider
+                className='w-48'
+                min={0}
+                max={1}
+                step={0.25}
+                value={[playbackRate]}
+                onValueChange={([value]) => {
+                  if (value < 0.25) {
+                    handleSpeedChange(0.25);
+                  } else {
+                    handleSpeedChange(value);
+                  }
+                }}
+              />
+              <span className='w-10 text-sm text-white text-center'>
+                {playbackRate.toFixed(2) + 'x'}
+              </span>
+            </div>
+            <Button onClick={toggleFullscreen} variant='outline' size='icon'>
+              <ExpandIcon className='h-6 w-6' />
             </Button>
           </div>
 
-          <div className="flex space-x-4">
+          <div className='flex space-x-4'>
             <Select
               value={selectedTrack.id}
               onValueChange={(value) =>
                 setSelectedTrack(tracks.find((t) => t.id === value)!)
               }
             >
-              <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
-                <SelectValue placeholder="Select a track" />
+              <SelectTrigger className='w-[180px] bg-white/10 border-white/20 text-white'>
+                <SelectValue placeholder='Select a track' />
               </SelectTrigger>
               <SelectContent>
                 {tracks.map((track) => (
@@ -382,15 +394,15 @@ export default function AdvancedSyncedPlayer() {
               </SelectContent>
             </Select>
 
-            <div className="flex space-x-2">
+            <div className='flex space-x-2'>
               {selectedTrack.videos.map((video) => (
                 <Button
                   key={video.id}
                   variant={
-                    video.id === selectedVideo.id ? "default" : "outline"
+                    video.id === selectedVideo.id ? 'default' : 'outline'
                   }
                   onClick={() => switchVideo(video.id)}
-                  size="sm"
+                  size='sm'
                 >
                   {video.name}
                 </Button>
@@ -398,18 +410,18 @@ export default function AdvancedSyncedPlayer() {
             </div>
           </div>
 
-          <div className="flex space-x-4 bg-black/50 p-4 rounded-lg">
+          <div className='flex space-x-4 bg-black/50 p-4 rounded-lg'>
             {selectedTrack.subTracks.map((subTrack) => (
               <div
                 key={subTrack.id}
-                className="flex flex-col items-center space-y-2"
+                className='flex flex-col items-center space-y-2'
               >
-                <label htmlFor={subTrack.id} className="text-white text-sm">
+                <label htmlFor={subTrack.id} className='text-white text-sm'>
                   {subTrack.name}
                 </label>
                 <Slider
                   id={subTrack.id}
-                  className="w-24"
+                  className='w-24'
                   min={0}
                   max={1}
                   step={0.01}
