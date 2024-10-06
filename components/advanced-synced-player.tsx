@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlayIcon, PauseIcon, Volume2Icon, ExpandIcon } from "lucide-react";
+import { saveMediaToIndexedDB, getMediaFromIndexedDB } from '../indexedDBUtils';
 
 // Mock data for tracks, sub-tracks, and videos
 const tracks = [
@@ -21,9 +22,9 @@ const tracks = [
       {
         id: "v1",
         name: "Bass Cam",
-        file: "/videos/Happy Bass 1 Scroll score.mov",
+        file: encodeURI("https://creativearstorage.blob.core.windows.net/webmfiles/Happy Bass 1 Scroll score.webm"),
       },
-      { id: "v2", name: "Score Cam", file: "/videos/Happy Video Bass 1.mp4" },
+      { id: "v2", name: "Score Cam", file: encodeURI("https://creativearstorage.blob.core.windows.net/webmfiles/Happy Video Bass 1.webm" )},
     ],
     subTracks: [
       { id: "1-1", name: "Bass", file: "/audios/Happy Bass 1 Audio.wav" },
@@ -33,15 +34,24 @@ const tracks = [
   },
 ];
 
-export default function AdvancedSyncedPlayer() {
-  const [selectedTrack, setSelectedTrack] = useState(tracks[0]);
-  const [selectedVideo, setSelectedVideo] = useState(selectedTrack.videos[0]);
+interface AdvancedSyncedPlayerProps {
+  selectedFile?: string;
+  onBackToDashboard: () => void;
+}
+
+const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({ selectedFile, onBackToDashboard }) => {
+  const [selectedTrack, setSelectedTrack] = useState(() => {
+    if (selectedFile) {
+      const track = tracks.find(t => t.subTracks.some(st => st.file === selectedFile));
+      return track || tracks[0];
+    }
+    return tracks[0];
+  });
+   const [selectedVideo, setSelectedVideo] = useState(selectedTrack.videos[0]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [masterVolume, setMasterVolume] = useState(1);
-  const [subTrackVolumes, setSubTrackVolumes] = useState<
-    Record<string, number>
-  >({});
+  const [subTrackVolumes, setSubTrackVolumes] = useState<Record<string, number>>({});
   const [showControls, setShowControls] = useState(true);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -97,6 +107,23 @@ export default function AdvancedSyncedPlayer() {
     }
   }, [selectedVideo]);
 
+  useEffect(() => {
+    const loadVideoWithCache = async () => {
+      const videoUrlBlob = await loadVideo(selectedVideo.file);
+  
+      if (videoUrlBlob) {
+        const videoElement = videoRefs.current[selectedVideo.id];
+        if (videoElement) {
+          videoElement.src = videoUrlBlob;
+        }
+      } else {
+        console.error("Failed to load video");
+      }
+    };
+  
+    loadVideoWithCache();
+  }, [selectedVideo]);
+  
   const loadAudio = async (file: string) => {
     const response = await fetch(file);
     const arrayBuffer = await response.arrayBuffer();
@@ -105,7 +132,33 @@ export default function AdvancedSyncedPlayer() {
     );
     return audioBuffer;
   };
-
+  
+  const loadVideo = async (videoUrl: string) => {
+    let videoBlob = await getMediaFromIndexedDB(videoUrl);
+  
+    if (!videoBlob) {
+      try {
+        const response = await fetch(videoUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch video: ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        await saveMediaToIndexedDB(videoUrl, blob);
+        videoBlob = blob;
+      } catch (error) {
+        console.error("Error fetching video:", error);
+        return null;
+      }
+    }
+  
+    if (videoBlob) {
+      const videoUrlBlob = URL.createObjectURL(videoBlob);
+      return videoUrlBlob;
+    }
+  
+    return null;
+  };
+  
   const playAudio = async () => {
     if (
       !audioContextRef.current ||
@@ -114,7 +167,6 @@ export default function AdvancedSyncedPlayer() {
     )
       return;
 
-    // Stop and remove existing source nodes
     Object.values(sourceNodesRef.current).forEach((node) => {
       try {
         node.stop();
@@ -132,9 +184,8 @@ export default function AdvancedSyncedPlayer() {
       sourceNode.buffer = audioBuffer;
       sourceNode.connect(gainNode);
 
-      // Connect gainNode to both channels of the mergerNode
-      gainNode.connect(mergerNodeRef.current, 0, 0); // Connect to left channel
-      gainNode.connect(mergerNodeRef.current, 0, 1); // Connect to right channel
+      gainNode.connect(mergerNodeRef.current, 0, 0);
+      gainNode.connect(mergerNodeRef.current, 0, 1);
 
       sourceNode.playbackRate.value = playbackRate;
       gainNode.gain.value = subTrackVolumes[subTrack.id] * masterVolume;
@@ -226,7 +277,6 @@ export default function AdvancedSyncedPlayer() {
     const newVideo = selectedTrack.videos.find((v) => v.id === videoId);
     if (newVideo) {
       setSelectedVideo(newVideo);
-      // Sync the new video with the current playback time
       const currentVideo = videoRefs.current[selectedVideo.id];
       const newVideoElement = videoRefs.current[videoId];
       if (currentVideo && newVideoElement) {
@@ -255,7 +305,7 @@ export default function AdvancedSyncedPlayer() {
       if (video) {
         setProgress(video.currentTime / video.duration);
       }
-    }, 1000 / 30); // Update 30 times per second
+    }, 1000 / 30);
   };
 
   const stopProgressInterval = () => {
@@ -294,7 +344,6 @@ export default function AdvancedSyncedPlayer() {
           ref={(el) => {
             videoRefs.current[video.id] = el;
           }}
-          src={video.file}
           className={`absolute inset-0 w-full h-full object-cover ${
             video.id === selectedVideo.id ? "block" : "hidden"
           }`}
@@ -423,6 +472,15 @@ export default function AdvancedSyncedPlayer() {
           </div>
         </div>
       </div>
+      <Button
+        onClick={onBackToDashboard}
+        className="absolute top-4 left-4 z-10"
+        variant="outline"
+      >
+        Back to Dashboard
+      </Button>
     </div>
   );
-}
+};
+
+export default AdvancedSyncedPlayer;
