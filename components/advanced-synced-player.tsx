@@ -96,7 +96,12 @@ export default function AdvancedSyncedPlayer() {
       const updateDuration = () => {
         setDuration(video.duration);
       };
-      video.addEventListener('loadedmetadata', updateDuration);
+      // If metadata is already loaded, set duration immediately
+      if (video.readyState >= 1) {
+        updateDuration();
+      } else {
+        video.addEventListener('loadedmetadata', updateDuration);
+      }
       return () => {
         video.removeEventListener('loadedmetadata', updateDuration);
       };
