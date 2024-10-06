@@ -40,14 +40,14 @@ interface AdvancedSyncedPlayerProps {
 }
 
 const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({ selectedFile, onBackToDashboard }) => {
-  const [selectedTrack, setSelectedTrack] = useState(() => {
+const [selectedTrack, setSelectedTrack] = useState(() => {
     if (selectedFile) {
       const track = tracks.find(t => t.subTracks.some(st => st.file === selectedFile));
       return track || tracks[0];
     }
     return tracks[0];
   });
-   const [selectedVideo, setSelectedVideo] = useState(selectedTrack.videos[0]);
+    const [selectedVideo, setSelectedVideo] = useState(selectedTrack.videos[0]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [masterVolume, setMasterVolume] = useState(1);
@@ -97,13 +97,9 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({ selectedFil
   useEffect(() => {
     const video = videoRefs.current[selectedVideo.id];
     if (video) {
-      const updateDuration = () => {
-        setDuration(video.duration);
-      };
+      const updateDuration = () => setDuration(video.duration);
       video.addEventListener("loadedmetadata", updateDuration);
-      return () => {
-        video.removeEventListener("loadedmetadata", updateDuration);
-      };
+      return () => video.removeEventListener("loadedmetadata", updateDuration);
     }
   }, [selectedVideo]);
 
@@ -197,9 +193,9 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({ selectedFil
 
     const currentTime = audioContextRef.current.currentTime;
     startTimeRef.current = currentTime;
+    pauseTimeRef.current = null;
 
-    // Determine the start offset based on pauseTimeRef or progress
-    const startOffset = pauseTimeRef.current ?? progress * duration;
+    const startOffset = progress * duration;
     Object.values(sourceNodesRef.current).forEach((node) =>
       node.start(currentTime, startOffset)
     );
@@ -458,7 +454,7 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({ selectedFil
                 </label>
                 <Slider
                   id={subTrack.id}
-                  className="w-24"
+                  className="h-24 w-4"
                   min={0}
                   max={1}
                   step={0.01}
@@ -466,6 +462,7 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({ selectedFil
                   onValueChange={([value]) =>
                     handleSubTrackVolumeChange(subTrack.id, value)
                   }
+                  orientation="vertical"
                 />
               </div>
             ))}
