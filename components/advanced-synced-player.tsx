@@ -146,9 +146,9 @@ export default function AdvancedSyncedPlayer() {
 
     const currentTime = audioContextRef.current.currentTime;
     startTimeRef.current = currentTime;
-    pauseTimeRef.current = null;
 
-    const startOffset = progress * duration;
+    // Determine the start offset based on pauseTimeRef or progress
+    const startOffset = pauseTimeRef.current ?? progress * duration;
     Object.values(sourceNodesRef.current).forEach((node) =>
       node.start(currentTime, startOffset)
     );
@@ -409,7 +409,7 @@ export default function AdvancedSyncedPlayer() {
                 </label>
                 <Slider
                   id={subTrack.id}
-                  className="h-24 w-4"
+                  className="w-24"
                   min={0}
                   max={1}
                   step={0.01}
@@ -417,7 +417,6 @@ export default function AdvancedSyncedPlayer() {
                   onValueChange={([value]) =>
                     handleSubTrackVolumeChange(subTrack.id, value)
                   }
-                  orientation="vertical"
                 />
               </div>
             ))}
