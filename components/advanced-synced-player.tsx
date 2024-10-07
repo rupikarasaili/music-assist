@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlayIcon, PauseIcon, Volume2Icon, ExpandIcon } from "lucide-react";
+import { PlayIcon, PauseIcon, Volume2Icon, ExpandIcon, Snail } from "lucide-react";
 import { saveMediaToIndexedDB, getMediaFromIndexedDB } from '../indexedDBUtils';
 
 // Mock data for tracks, sub-tracks, and videos
@@ -55,6 +55,7 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
   const [showControls, setShowControls] = useState(true);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodesRef = useRef<Record<string, AudioBufferSourceNode>>({});
@@ -234,11 +235,16 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
 
   const togglePlayPause = () => {
     if (isPlaying) {
+      // Pause audio and stop progress tracking
       pauseAudio();
+      stopProgressInterval();
     } else {
+      // Play audio and start progress tracking
       playAudio();
+      startProgressInterval();
     }
   };
+  
 
   const handleSpeedChange = (newSpeed: number) => {
     setPlaybackRate(newSpeed);
@@ -268,15 +274,14 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
       gainNodesRef.current[subTrackId].gain.value = newVolume * masterVolume;
     }
   };
-
   const switchVideo = async (videoId: string) => {
     const currentVideo = videoRefs.current[selectedVideo.id];
     const newVideo = selectedTrack.videos.find((v) => v.id === videoId);
   
     if (newVideo && currentVideo) {
       try {
-        // Pause the current video if it is playing
-        await currentVideo.pause(); // Ensure the current video is fully paused
+        // Pause the current video without 'await', since pause() is synchronous
+        currentVideo.pause(); // Ensure the current video is fully paused
   
         // Get the current playback time of the old video
         const currentTime = currentVideo.currentTime;
@@ -291,18 +296,18 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
           newVideoElement.currentTime = currentTime;
   
           // Wait until the new video is ready (loadedmetadata ensures the video can be played)
-          newVideoElement.addEventListener('loadedmetadata', async () => {
-            // Ensure the new video starts from the previous video's position
+          newVideoElement.addEventListener('loadedmetadata', () => {
+            // Set the new video's current time to match the previous one
             newVideoElement.currentTime = currentTime;
   
+            // Synchronize the progress bar to the correct point
+            setProgress(currentTime / newVideoElement.duration);
+  
+            // Only play the new video if the previous video was playing
             if (isPlaying) {
-              try {
-                await newVideoElement.play(); // Play the new video after it is fully loaded
-              } catch (error) {
-                console.error('Error playing new video:', error);
-              }
+              newVideoElement.play();
             }
-          });
+          }, { once: true }); // Run the listener once
         }
       } catch (error) {
         console.error('Error during video switch:', error);
@@ -311,7 +316,7 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
   };
   
   
-
+  
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       containerRef.current?.requestFullscreen();
@@ -324,20 +329,23 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
     }
+  
     progressIntervalRef.current = window.setInterval(() => {
       const video = videoRefs.current[selectedVideo.id];
       if (video) {
+        // Update the progress based on the current playing video
         setProgress(video.currentTime / video.duration);
       }
-    }, 1000 / 30);
+    }, 1000 / 30); // Update every 30ms
   };
-
+  
   const stopProgressInterval = () => {
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
     }
   };
+  
 
   const handleProgressChange = (newProgress: number) => {
     setProgress(newProgress);
@@ -403,13 +411,13 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
               {isPlaying ? (
                 <PauseIcon className="h-6 w-6" />
               ) : (
-                <PlayIcon className="h-6 w-6" />
+                <PlayIcon className='h-6 w-6' />
               )}
             </Button>
-            <div className="flex items-center space-x-2 flex-1">
-              <Volume2Icon className="h-4 w-4 text-white" />
+            <div className='flex items-center space-x-2 flex-1'>
+              <Volume2Icon className='h-4 w-4 text-white' />
               <Slider
-                className="w-24"
+                className='w-24'
                 min={0}
                 max={1}
                 step={0.01}
@@ -417,26 +425,32 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
                 onValueChange={([value]) => handleMasterVolumeChange(value)}
               />
             </div>
-            <Select
-              value={playbackRate.toString()}
-              onValueChange={(value) => handleSpeedChange(parseFloat(value))}
-            >
-              <SelectTrigger className="w-[100px] bg-white/10 border-white/20 text-white">
-                <SelectValue placeholder="Speed" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.25">0.25x</SelectItem>
-                <SelectItem value="0.5">0.5x</SelectItem>
-                <SelectItem value="0.75">0.75x</SelectItem>
-                <SelectItem value="1">1x</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={toggleFullscreen} variant="outline" size="icon">
-              <ExpandIcon className="h-6 w-6" />
+            <Snail className='size-4 text-white' />
+            <div className='flex gap-x-2'>
+              <Slider
+                className='w-48'
+                min={0}
+                max={1}
+                step={0.25}
+                value={[playbackRate]}
+                onValueChange={([value]) => {
+                  if (value < 0.25) {
+                    handleSpeedChange(0.25);
+                  } else {
+                    handleSpeedChange(value);
+                  }
+                }}
+              />
+              <span className='w-10 text-sm text-white text-center'>
+                {playbackRate.toFixed(2) + 'x'}
+              </span>
+            </div>
+            <Button onClick={toggleFullscreen} variant='outline' size='icon'>
+              <ExpandIcon className='h-6 w-6' />
             </Button>
           </div>
 
-          <div className="flex space-x-4">
+          <div className='flex space-x-4'>
             <Select
               value={selectedTrack.id}
               onValueChange={(value) =>
