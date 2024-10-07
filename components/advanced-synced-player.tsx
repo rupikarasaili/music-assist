@@ -269,20 +269,48 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
     }
   };
 
-  const switchVideo = (videoId: string) => {
+  const switchVideo = async (videoId: string) => {
+    const currentVideo = videoRefs.current[selectedVideo.id];
     const newVideo = selectedTrack.videos.find((v) => v.id === videoId);
-    if (newVideo) {
-      setSelectedVideo(newVideo);
-      const currentVideo = videoRefs.current[selectedVideo.id];
-      const newVideoElement = videoRefs.current[videoId];
-      if (currentVideo && newVideoElement) {
-        newVideoElement.currentTime = currentVideo.currentTime;
-        if (isPlaying) {
-          newVideoElement.play();
+  
+    if (newVideo && currentVideo) {
+      try {
+        // Pause the current video if it is playing
+        await currentVideo.pause(); // Ensure the current video is fully paused
+  
+        // Get the current playback time of the old video
+        const currentTime = currentVideo.currentTime;
+  
+        // Set the new video
+        setSelectedVideo(newVideo);
+  
+        const newVideoElement = videoRefs.current[videoId];
+  
+        if (newVideoElement) {
+          // Synchronize the new video's currentTime with the previous one
+          newVideoElement.currentTime = currentTime;
+  
+          // Wait until the new video is ready (loadedmetadata ensures the video can be played)
+          newVideoElement.addEventListener('loadedmetadata', async () => {
+            // Ensure the new video starts from the previous video's position
+            newVideoElement.currentTime = currentTime;
+  
+            if (isPlaying) {
+              try {
+                await newVideoElement.play(); // Play the new video after it is fully loaded
+              } catch (error) {
+                console.error('Error playing new video:', error);
+              }
+            }
+          });
         }
+      } catch (error) {
+        console.error('Error during video switch:', error);
       }
     }
   };
+  
+  
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
