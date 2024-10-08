@@ -95,3 +95,150 @@ export default function Dashboard({ onGoToPlayer }: DashboardProps) {
     </div>
   )
 }
+
+{/* <div
+ref={containerRef}
+className='relative w-full h-screen bg-black overflow-hidden'
+>
+{selectedTrack.videos.map((video) => (
+  <video
+    key={video.id}
+    ref={(el) => {
+      videoRefs.current[video.id] = el;
+    }}
+    src={video.file}
+    className={`absolute inset-0 w-full h-full object-cover ${
+      video.id === selectedVideo.id ? 'block' : 'hidden'
+    }`}
+    playsInline
+  />
+))}
+
+<div
+  className={`absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-300 ${
+    showControls ? 'opacity-100' : 'opacity-0'
+  }`}
+  onMouseEnter={() => setShowControls(true)}
+  onMouseLeave={() => setShowControls(false)}
+>
+  <div className='absolute bottom-0 left-0 right-0 p-4 space-y-4'>
+    <div className='flex items-center space-x-2'>
+      <span className='text-white text-sm'>
+        {formatTime(progress * duration)}
+      </span>
+      <Slider
+        className='flex-1'
+        min={0}
+        max={1}
+        step={0.001}
+        value={[progress]}
+        onValueChange={([value]) => handleProgressChange(value)}
+      />
+      <span className='text-white text-sm'>{formatTime(duration)}</span>
+    </div>
+
+    <div className='flex items-center space-x-4'>
+      <Button onClick={togglePlayPause} variant='outline' size='icon'>
+        {isPlaying ? (
+          <PauseIcon className='h-6 w-6' />
+        ) : (
+          <PlayIcon className='h-6 w-6' />
+        )}
+      </Button>
+      <div className='flex items-center space-x-2 flex-1'>
+        <Volume2Icon className='h-4 w-4 text-white' />
+        <Slider
+          className='w-24'
+          min={0}
+          max={1}
+          step={0.01}
+          value={[masterVolume]}
+          onValueChange={([value]) => handleMasterVolumeChange(value)}
+        />
+      </div>
+      <Snail className='size-4 text-white' />
+      <div className='flex gap-x-2'>
+        <Slider
+          className='w-48'
+          min={0}
+          max={1}
+          step={0.25}
+          value={[playbackRate]}
+          onValueChange={([value]) => {
+            if (value < 0.25) {
+              handleSpeedChange(0.25);
+            } else {
+              handleSpeedChange(value);
+            }
+          }}
+        />
+        <span className='w-10 text-sm text-white text-center'>
+          {playbackRate.toFixed(2) + 'x'}
+        </span>
+      </div>
+      <Button onClick={toggleFullscreen} variant='outline' size='icon'>
+        <ExpandIcon className='h-6 w-6' />
+      </Button>
+    </div>
+
+    <div className='flex space-x-4'>
+      <Select
+        value={selectedTrack.id}
+        onValueChange={(value) =>
+          setSelectedTrack(tracks.find((t) => t.id === value)!)
+        }
+      >
+        <SelectTrigger className='w-[180px] bg-white/10 border-white/20 text-white'>
+          <SelectValue placeholder='Select a track' />
+        </SelectTrigger>
+        <SelectContent>
+          {tracks.map((track) => (
+            <SelectItem key={track.id} value={track.id}>
+              {track.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <div className='flex space-x-2'>
+        {selectedTrack.videos.map((video) => (
+          <Button
+            key={video.id}
+            variant={
+              video.id === selectedVideo.id ? 'default' : 'outline'
+            }
+            onClick={() => switchVideo(video.id)}
+            size='sm'
+          >
+            {video.name}
+          </Button>
+        ))}
+      </div>
+    </div>
+
+    <div className='flex space-x-4 bg-black/50 p-4 rounded-lg'>
+      {selectedTrack.subTracks.map((subTrack) => (
+        <div
+          key={subTrack.id}
+          className='flex flex-col items-center space-y-2'
+        >
+          <label htmlFor={subTrack.id} className='text-white text-sm'>
+            {subTrack.name}
+          </label>
+          <Slider
+            id={subTrack.id}
+            className='w-24'
+            min={0}
+            max={1}
+            step={0.01}
+            value={[subTrackVolumes[subTrack.id] || 0]}
+            onValueChange={([value]) =>
+              handleSubTrackVolumeChange(subTrack.id, value)
+            }
+          />
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+</div> */}

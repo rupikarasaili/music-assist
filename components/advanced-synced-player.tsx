@@ -216,7 +216,7 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
 
     pauseTimeRef.current =
       audioContextRef.current.currentTime - (startTimeRef.current || 0);
-    Object.values(sourceNodesRef.current).forEach((node) => {
+    Object.values(sourceNodesRef.current).forEach((node) => { 
       try {
         node.stop();
       } catch (error) {
@@ -430,7 +430,7 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
               <Slider
                 className='w-48'
                 min={0}
-                max={1}
+                max={1.5}
                 step={0.25}
                 value={[playbackRate]}
                 onValueChange={([value]) => {
@@ -484,29 +484,27 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
               ))}
             </div>
           </div>
-
-          <div className="flex space-x-4 bg-black/50 p-4 rounded-lg">
-            {selectedTrack.subTracks.map((subTrack) => (
-              <div
-                key={subTrack.id}
-                className="flex flex-col items-center space-y-2"
-              >
-                <label htmlFor={subTrack.id} className="text-white text-sm">
-                  {subTrack.name}
-                </label>
-                <Slider
-                  id={subTrack.id}
-                  className="h-24 w-4"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={[subTrackVolumes[subTrack.id] || 0]}
-                  onValueChange={([value]) =>
-                    handleSubTrackVolumeChange(subTrack.id, value)
-                  }
-                  orientation="vertical"
-                />
-              </div>
+          <div className='flex space-x-4 bg-black/50 p-4 rounded-lg'>
+      {selectedTrack.subTracks.map((subTrack) => (
+        <div
+          key={subTrack.id}
+          className='flex flex-col items-center space-y-2'
+        >
+          <label htmlFor={subTrack.id} className='text-white text-sm'>
+            {subTrack.name}
+          </label>
+          <Slider
+            id={subTrack.id}
+            className='w-24'
+            min={0}
+            max={1}
+            step={0.01}
+            value={[subTrackVolumes[subTrack.id] || 0]}
+            onValueChange={([value]) =>
+              handleSubTrackVolumeChange(subTrack.id, value)
+            }
+          />
+        </div>
             ))}
           </div>
         </div>
@@ -523,3 +521,4 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
 };
 
 export default AdvancedSyncedPlayer;
+
