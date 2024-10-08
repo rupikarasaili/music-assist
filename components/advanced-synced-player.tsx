@@ -10,8 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PlayIcon, PauseIcon, Volume2Icon, ExpandIcon, Snail } from "lucide-react";
-import { saveMediaToIndexedDB, getMediaFromIndexedDB } from '../indexedDBUtils';
+import {
+  PlayIcon,
+  PauseIcon,
+  Volume2Icon,
+  ExpandIcon,
+  Snail,
+} from "lucide-react";
+import { saveMediaToIndexedDB, getMediaFromIndexedDB } from "../indexedDBUtils";
 
 // Mock data for tracks, sub-tracks, and videos
 const tracks = [
@@ -22,9 +28,17 @@ const tracks = [
       {
         id: "v1",
         name: "Bass Cam",
-        file: encodeURI("https://creativearstorage.blob.core.windows.net/webmfiles/Happy Bass 1 Scroll score.webm"),
+        file: encodeURI(
+          "https://creativearstorage.blob.core.windows.net/webmfiles/Happy Bass 1 Scroll score.webm"
+        ),
       },
-      { id: "v2", name: "Score Cam", file: encodeURI("https://creativearstorage.blob.core.windows.net/webmfiles/Happy Video Bass 1.webm" )},
+      {
+        id: "v2",
+        name: "Score Cam",
+        file: encodeURI(
+          "https://creativearstorage.blob.core.windows.net/webmfiles/Happy Video Bass 1.webm"
+        ),
+      },
     ],
     subTracks: [
       { id: "1-1", name: "Bass", file: "/audios/Happy Bass 1 Audio.wav" },
@@ -39,23 +53,30 @@ interface AdvancedSyncedPlayerProps {
   onBackToDashboard: () => void;
 }
 
-const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({ selectedFile, onBackToDashboard }) => {
-const [selectedTrack, setSelectedTrack] = useState(() => {
+const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
+  selectedFile,
+  onBackToDashboard,
+}) => {
+  const [selectedTrack, setSelectedTrack] = useState(() => {
     if (selectedFile) {
-      const track = tracks.find(t => t.subTracks.some(st => st.file === selectedFile));
+      const track = tracks.find((t) =>
+        t.subTracks.some((st) => st.file === selectedFile)
+      );
       return track || tracks[0];
     }
     return tracks[0];
   });
-    const [selectedVideo, setSelectedVideo] = useState(selectedTrack.videos[0]);
+  const [selectedVideo, setSelectedVideo] = useState(selectedTrack.videos[0]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [masterVolume, setMasterVolume] = useState(1);
-  const [subTrackVolumes, setSubTrackVolumes] = useState<Record<string, number>>({});
+  const [subTrackVolumes, setSubTrackVolumes] = useState<
+    Record<string, number>
+  >({});
   const [showControls, setShowControls] = useState(true);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  
+  const [videosReady, setVideosReady] = useState<Record<string, boolean>>({});
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodesRef = useRef<Record<string, AudioBufferSourceNode>>({});
@@ -98,29 +119,49 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
   useEffect(() => {
     const video = videoRefs.current[selectedVideo.id];
     if (video) {
-      const updateDuration = () => setDuration(video.duration);
+      const updateDuration = () => {
+        setDuration(video.duration);
+        console.log(`Duration of video ${selectedVideo.id}:`, video.duration);
+      };
+
+      const updateProgress = () => {
+        setProgress(video.currentTime / video.duration);
+      };
+
       video.addEventListener("loadedmetadata", updateDuration);
-      return () => video.removeEventListener("loadedmetadata", updateDuration);
+      video.addEventListener("timeupdate", updateProgress);
+
+      return () => {
+        video.removeEventListener("loadedmetadata", updateDuration);
+        video.removeEventListener("timeupdate", updateProgress);
+      };
     }
   }, [selectedVideo]);
 
   useEffect(() => {
     const loadVideoWithCache = async () => {
       const videoUrlBlob = await loadVideo(selectedVideo.file);
-  
+
       if (videoUrlBlob) {
         const videoElement = videoRefs.current[selectedVideo.id];
         if (videoElement) {
           videoElement.src = videoUrlBlob;
+          videoElement.addEventListener(
+            "loadedmetadata",
+            () => {
+              setVideosReady((prev) => ({ ...prev, [selectedVideo.id]: true }));
+            },
+            { once: true }
+          );
         }
       } else {
         console.error("Failed to load video");
       }
     };
-  
+
     loadVideoWithCache();
   }, [selectedVideo]);
-  
+
   const loadAudio = async (file: string) => {
     const response = await fetch(file);
     const arrayBuffer = await response.arrayBuffer();
@@ -129,10 +170,10 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
     );
     return audioBuffer;
   };
-  
+
   const loadVideo = async (videoUrl: string) => {
     let videoBlob = await getMediaFromIndexedDB(videoUrl);
-  
+
     if (!videoBlob) {
       try {
         const response = await fetch(videoUrl);
@@ -147,15 +188,15 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
         return null;
       }
     }
-  
+
     if (videoBlob) {
       const videoUrlBlob = URL.createObjectURL(videoBlob);
       return videoUrlBlob;
     }
-  
+
     return null;
   };
-  
+
   const playAudio = async () => {
     if (
       !audioContextRef.current ||
@@ -197,18 +238,21 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
     pauseTimeRef.current = null;
 
     const startOffset = progress * duration;
-    Object.values(sourceNodesRef.current).forEach((node) =>
-      node.start(currentTime, startOffset)
-    );
-    Object.values(videoRefs.current).forEach((video) => {
-      if (video) {
-        video.currentTime = startOffset;
-        video.play();
-      }
-    });
+    if (isFinite(startOffset)) {
+      Object.values(sourceNodesRef.current).forEach((node) =>
+        node.start(currentTime, startOffset)
+      );
+      Object.values(videoRefs.current).forEach((video) => {
+        if (video) {
+          video.currentTime = startOffset;
+          video.play();
+        }
+      });
 
-    startProgressInterval();
-    setIsPlaying(true);
+      setIsPlaying(true);
+    } else {
+      console.error("Invalid start offset:", startOffset);
+    }
   };
 
   const pauseAudio = () => {
@@ -216,7 +260,7 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
 
     pauseTimeRef.current =
       audioContextRef.current.currentTime - (startTimeRef.current || 0);
-    Object.values(sourceNodesRef.current).forEach((node) => { 
+    Object.values(sourceNodesRef.current).forEach((node) => {
       try {
         node.stop();
       } catch (error) {
@@ -229,7 +273,6 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
       }
     });
 
-    stopProgressInterval();
     setIsPlaying(false);
   };
 
@@ -237,14 +280,11 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
     if (isPlaying) {
       // Pause audio and stop progress tracking
       pauseAudio();
-      stopProgressInterval();
     } else {
       // Play audio and start progress tracking
       playAudio();
-      startProgressInterval();
     }
   };
-  
 
   const handleSpeedChange = (newSpeed: number) => {
     setPlaybackRate(newSpeed);
@@ -274,49 +314,42 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
       gainNodesRef.current[subTrackId].gain.value = newVolume * masterVolume;
     }
   };
+
   const switchVideo = async (videoId: string) => {
     const currentVideo = videoRefs.current[selectedVideo.id];
     const newVideo = selectedTrack.videos.find((v) => v.id === videoId);
-  
+
     if (newVideo && currentVideo) {
       try {
-        // Pause the current video without 'await', since pause() is synchronous
-        currentVideo.pause(); // Ensure the current video is fully paused
-  
-        // Get the current playback time of the old video
+        currentVideo.pause();
         const currentTime = currentVideo.currentTime;
-  
-        // Set the new video
         setSelectedVideo(newVideo);
-  
+
         const newVideoElement = videoRefs.current[videoId];
-  
         if (newVideoElement) {
-          // Synchronize the new video's currentTime with the previous one
           newVideoElement.currentTime = currentTime;
-  
-          // Wait until the new video is ready (loadedmetadata ensures the video can be played)
-          newVideoElement.addEventListener('loadedmetadata', () => {
-            // Set the new video's current time to match the previous one
-            newVideoElement.currentTime = currentTime;
-  
-            // Synchronize the progress bar to the correct point
-            setProgress(currentTime / newVideoElement.duration);
-  
-            // Only play the new video if the previous video was playing
-            if (isPlaying) {
-              newVideoElement.play();
-            }
-          }, { once: true }); // Run the listener once
+          newVideoElement.addEventListener(
+            "loadedmetadata",
+            () => {
+              newVideoElement.currentTime = currentTime;
+              setProgress(currentTime / newVideoElement.duration);
+              console.log(
+                `Duration of new video ${videoId}:`,
+                newVideoElement.duration
+              );
+              if (isPlaying) {
+                newVideoElement.play();
+              }
+            },
+            { once: true }
+          );
         }
       } catch (error) {
-        console.error('Error during video switch:', error);
+        console.error("Error during video switch:", error);
       }
     }
   };
-  
-  
-  
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       containerRef.current?.requestFullscreen();
@@ -324,28 +357,6 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
       document.exitFullscreen();
     }
   };
-
-  const startProgressInterval = () => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-    }
-  
-    progressIntervalRef.current = window.setInterval(() => {
-      const video = videoRefs.current[selectedVideo.id];
-      if (video) {
-        // Update the progress based on the current playing video
-        setProgress(video.currentTime / video.duration);
-      }
-    }, 1000 / 30); // Update every 30ms
-  };
-  
-  const stopProgressInterval = () => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
-  };
-  
 
   const handleProgressChange = (newProgress: number) => {
     setProgress(newProgress);
@@ -407,17 +418,22 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Button onClick={togglePlayPause} variant="outline" size="icon">
+            <Button
+              onClick={togglePlayPause}
+              variant="outline"
+              size="icon"
+              disabled={!videosReady[selectedVideo.id]}
+            >
               {isPlaying ? (
                 <PauseIcon className="h-6 w-6" />
               ) : (
-                <PlayIcon className='h-6 w-6' />
+                <PlayIcon className="h-6 w-6" />
               )}
             </Button>
-            <div className='flex items-center space-x-2 flex-1'>
-              <Volume2Icon className='h-4 w-4 text-white' />
+            <div className="flex items-center space-x-2 flex-1">
+              <Volume2Icon className="h-4 w-4 text-white" />
               <Slider
-                className='w-24'
+                className="w-24"
                 min={0}
                 max={1}
                 step={0.01}
@@ -425,10 +441,10 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
                 onValueChange={([value]) => handleMasterVolumeChange(value)}
               />
             </div>
-            <Snail className='size-4 text-white' />
-            <div className='flex gap-x-2'>
+            <Snail className="size-4 text-white" />
+            <div className="flex gap-x-2">
               <Slider
-                className='w-48'
+                className="w-48"
                 min={0}
                 max={1.5}
                 step={0.25}
@@ -441,16 +457,16 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
                   }
                 }}
               />
-              <span className='w-10 text-sm text-white text-center'>
-                {playbackRate.toFixed(2) + 'x'}
+              <span className="w-10 text-sm text-white text-center">
+                {playbackRate.toFixed(2) + "x"}
               </span>
             </div>
-            <Button onClick={toggleFullscreen} variant='outline' size='icon'>
-              <ExpandIcon className='h-6 w-6' />
+            <Button onClick={toggleFullscreen} variant="outline" size="icon">
+              <ExpandIcon className="h-6 w-6" />
             </Button>
           </div>
 
-          <div className='flex space-x-4'>
+          <div className="flex space-x-4">
             <Select
               value={selectedTrack.id}
               onValueChange={(value) =>
@@ -484,27 +500,27 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
               ))}
             </div>
           </div>
-          <div className='flex space-x-4 bg-black/50 p-4 rounded-lg'>
-      {selectedTrack.subTracks.map((subTrack) => (
-        <div
-          key={subTrack.id}
-          className='flex flex-col items-center space-y-2'
-        >
-          <label htmlFor={subTrack.id} className='text-white text-sm'>
-            {subTrack.name}
-          </label>
-          <Slider
-            id={subTrack.id}
-            className='w-24'
-            min={0}
-            max={1}
-            step={0.01}
-            value={[subTrackVolumes[subTrack.id] || 0]}
-            onValueChange={([value]) =>
-              handleSubTrackVolumeChange(subTrack.id, value)
-            }
-          />
-        </div>
+          <div className="flex space-x-4 bg-black/50 p-4 rounded-lg">
+            {selectedTrack.subTracks.map((subTrack) => (
+              <div
+                key={subTrack.id}
+                className="flex flex-col items-center space-y-2"
+              >
+                <label htmlFor={subTrack.id} className="text-white text-sm">
+                  {subTrack.name}
+                </label>
+                <Slider
+                  id={subTrack.id}
+                  className="w-24"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={[subTrackVolumes[subTrack.id] || 0]}
+                  onValueChange={([value]) =>
+                    handleSubTrackVolumeChange(subTrack.id, value)
+                  }
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -521,4 +537,3 @@ const [selectedTrack, setSelectedTrack] = useState(() => {
 };
 
 export default AdvancedSyncedPlayer;
-
