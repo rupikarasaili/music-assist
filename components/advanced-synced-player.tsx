@@ -77,6 +77,7 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [videosReady, setVideosReady] = useState<Record<string, boolean>>({});
+  const [isMediaReady, setIsMediaReady] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodesRef = useRef<Record<string, AudioBufferSourceNode>>({});
@@ -120,19 +121,28 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
     const video = videoRefs.current[selectedVideo.id];
     if (video) {
       const updateDuration = () => {
-        setDuration(video.duration);
+        setDuration(video.duration || 0);
         console.log(`Duration of video ${selectedVideo.id}:`, video.duration);
       };
 
       const updateProgress = () => {
-        setProgress(video.currentTime / video.duration);
+        setProgress(video.currentTime / (video.duration || 1));
       };
 
-      video.addEventListener("loadedmetadata", updateDuration);
+      const handleLoadedMetadata = () => {
+        updateDuration();
+        setIsMediaReady(true); // Set media as ready when metadata is loaded
+      };
+
+      video.addEventListener("loadedmetadata", handleLoadedMetadata);
       video.addEventListener("timeupdate", updateProgress);
 
+      // Initialize progress and duration
+      setProgress(0);
+      setDuration(video.duration || 0);
+
       return () => {
-        video.removeEventListener("loadedmetadata", updateDuration);
+        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
         video.removeEventListener("timeupdate", updateProgress);
       };
     }
@@ -422,7 +432,7 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
               onClick={togglePlayPause}
               variant="outline"
               size="icon"
-              disabled={!videosReady[selectedVideo.id]}
+              disabled={!isMediaReady || !videosReady[selectedVideo.id]}
             >
               {isPlaying ? (
                 <PauseIcon className="h-6 w-6" />
@@ -500,7 +510,7 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
               ))}
             </div>
           </div>
-          <div className="flex space-x-4 bg-black/50 p-4 rounded-lg">
+          <div className="flex space-x-4 bg-black/50 p-4 rounded-lg w-max">
             {selectedTrack.subTracks.map((subTrack) => (
               <div
                 key={subTrack.id}
