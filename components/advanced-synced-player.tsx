@@ -360,7 +360,7 @@ export default function AdvancedSyncedPlayer() {
               <Slider
                 className='w-48'
                 min={0}
-                max={1}
+                max={2}
                 step={0.25}
                 value={[playbackRate]}
                 onValueChange={([value]) => {
