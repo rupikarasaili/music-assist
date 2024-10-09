@@ -41,11 +41,34 @@ const tracks = [
       },
     ],
     subTracks: [
-      { id: "1-1", name: "Bass", file: encodeURI( "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Bass 1.mp3") },
-      { id: "1-2", name: "Komp", file: encodeURI( "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Komp.mp3") },
-      { id: "1-3", name: "Orchestra", file:encodeURI( "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Orkester.mp3") },
-      { id: "1-4", name: "Vocals", file: encodeURI( "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Vocals.mp3") },
-
+      {
+        id: "1-1",
+        name: "Bass",
+        file: encodeURI(
+          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Bass 1.mp3"
+        ),
+      },
+      {
+        id: "1-2",
+        name: "Komp",
+        file: encodeURI(
+          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Komp.mp3"
+        ),
+      },
+      {
+        id: "1-3",
+        name: "Orchestra",
+        file: encodeURI(
+          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Orkester.mp3"
+        ),
+      },
+      {
+        id: "1-4",
+        name: "Vocals",
+        file: encodeURI(
+          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Vocals.mp3"
+        ),
+      },
     ],
   },
 ];
@@ -80,6 +103,8 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [videosReady, setVideosReady] = useState<Record<string, boolean>>({});
   const [isMediaReady, setIsMediaReady] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(true);
+  const [allMediaLoaded, setAllMediaLoaded] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodesRef = useRef<Record<string, AudioBufferSourceNode>>({});
@@ -151,28 +176,40 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   }, [selectedVideo]);
 
   useEffect(() => {
-    const loadVideoWithCache = async () => {
-      const videoUrlBlob = await loadVideo(selectedVideo.file);
-
-      if (videoUrlBlob) {
-        const videoElement = videoRefs.current[selectedVideo.id];
-        if (videoElement) {
-          videoElement.src = videoUrlBlob;
-          videoElement.addEventListener(
-            "loadedmetadata",
-            () => {
-              setVideosReady((prev) => ({ ...prev, [selectedVideo.id]: true }));
-            },
-            { once: true }
-          );
+    const loadMedia = async () => {
+      const videoPromises = selectedTrack.videos.map(async (video) => {
+        const videoUrlBlob = await loadVideo(video.file);
+        if (videoUrlBlob) {
+          const videoElement = videoRefs.current[video.id];
+          if (videoElement) {
+            videoElement.src = videoUrlBlob;
+            return new Promise<void>((resolve) => {
+              videoElement.addEventListener(
+                "loadedmetadata",
+                () => {
+                  setVideosReady((prev) => ({ ...prev, [video.id]: true }));
+                  resolve();
+                },
+                { once: true }
+              );
+            });
+          }
+        } else {
+          console.error("Failed to load video");
         }
-      } else {
-        console.error("Failed to load video");
-      }
+      });
+
+      const audioPromises = selectedTrack.subTracks.map(async (subTrack) => {
+        await loadAudio(subTrack.file);
+      });
+
+      await Promise.all([...videoPromises, ...audioPromises]);
+      setIsBuffering(false);
+      setAllMediaLoaded(true); // Set all media as loaded
     };
 
-    loadVideoWithCache();
-  }, [selectedVideo]);
+    loadMedia();
+  }, [selectedTrack]);
 
   const loadAudio = async (file: string) => {
     const response = await fetch(file);
@@ -391,7 +428,9 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-screen bg-black overflow-hidden"
+      className={`relative w-full h-screen bg-black overflow-hidden ${
+        isBuffering ? "pointer-events-none opacity-50" : ""
+      }`}
     >
       {selectedTrack.videos.map((video) => (
         <video
@@ -434,7 +473,11 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
               onClick={togglePlayPause}
               variant="outline"
               size="icon"
-              disabled={!isMediaReady || !videosReady[selectedVideo.id]}
+              disabled={
+                !isMediaReady ||
+                !videosReady[selectedVideo.id] ||
+                !allMediaLoaded
+              } // Disable until all media is loaded
             >
               {isPlaying ? (
                 <PauseIcon className="h-6 w-6" />
@@ -458,7 +501,7 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
               <Slider
                 className="w-48"
                 min={0}
-                max={1.5}
+                max={2}
                 step={0.25}
                 value={[playbackRate]}
                 onValueChange={([value]) => {
