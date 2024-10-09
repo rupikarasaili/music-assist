@@ -41,9 +41,11 @@ const tracks = [
       },
     ],
     subTracks: [
-      { id: "1-1", name: "Bass", file: "/audios/Happy Bass 1 Audio.wav" },
-      { id: "1-2", name: "No Bass", file: "/audios/Happy Komp No bass.wav" },
-      { id: "1-3", name: "Orchestra", file: "/audios/Happy Orkester.wav" },
+      { id: "1-1", name: "Bass", file: "/audios/Bass 1.mp3" },
+      { id: "1-2", name: "No Bass", file: "/audios/Komp.mp3" },
+      { id: "1-3", name: "Orchestra", file: "/audios/Orkester.mp3" },
+      { id: "1-4", name: "Vocals", file: "/audios/Vocals.mp3" },
+
     ],
   },
 ];
