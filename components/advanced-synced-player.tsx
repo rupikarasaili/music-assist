@@ -18,7 +18,7 @@ import {
   Snail,
 } from "lucide-react";
 import { saveMediaToIndexedDB, getMediaFromIndexedDB } from "../indexedDBUtils";
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
 // Mock data for tracks, sub-tracks, and videos
 const tracks = [
@@ -30,22 +30,40 @@ const tracks = [
         id: "v1",
         name: "Bass Cam",
         file: encodeURI(
-          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Happy Bass 1 Scroll score.webm"
+          "https://creativearstorage.blob.core.windows.net/webmfiles/Happy Bass 1 Scroll score.webm"
         ),
       },
       {
         id: "v2",
         name: "Score Cam",
         file: encodeURI(
-          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Happy Video Bass 1.webm"
+          "https://creativearstorage.blob.core.windows.net/webmfiles/Happy Video Bass 1.webm"
         ),
       },
     ],
     subTracks: [
-      { id: "1-1", name: "Bass", file: encodeURI( "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Bass 1.mp3") },
-      { id: "1-2", name: "Komp", file: encodeURI( "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Komp.mp3") },
-      { id: "1-3", name: "Orchestra", file:encodeURI( "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Orkester.mp3") },
-      { id: "1-4", name: "Vocals", file: encodeURI( "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Vocals.mp3") },
+    
+      {
+        id: "1-2",
+        name: "Komp",
+        file: encodeURI(
+          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Komp.mp3"
+        ),
+      },
+      {
+        id: "1-3",
+        name: "Orchestra",
+        file: encodeURI(
+          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Orkester.mp3"
+        ),
+      },
+      {
+        id: "1-4",
+        name: "Vocals",
+        file: encodeURI(
+          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Vocals.mp3"
+        ),
+      },
     ],
   },
 ];
@@ -72,54 +90,54 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [masterVolume, setMasterVolume] = useState(1);
-  const [subTrackVolumes, setSubTrackVolumes] = useState<Record<string, number>>({});
+  const [subTrackVolumes, setSubTrackVolumes] = useState<
+    Record<string, number>
+  >({});
   const [showControls, setShowControls] = useState(true);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [videosReady, setVideosReady] = useState<Record<string, boolean>>({});
   const [isMediaReady, setIsMediaReady] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(true);
+  const [allMediaLoaded, setAllMediaLoaded] = useState(false);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodesRef = useRef<Record<string, AudioBufferSourceNode>>({});
+  const tonePlayersRef = useRef<Record<string, Tone.Player>>({});
+
+  // const audioContextRef = useRef<AudioContext | null>(null);
+  // const sourceNodesRef = useRef<Record<string, AudioBufferSourceNode>>({});
   const gainNodesRef = useRef<Record<string, GainNode>>({});
-  const mergerNodeRef = useRef<ChannelMergerNode | null>(null);
+  // const mergerNodeRef = useRef<ChannelMergerNode | null>(null);
   const masterGainNodeRef = useRef<GainNode | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const pauseTimeRef = useRef<number | null>(null);
+  // const startTimeRef = useRef<number | null>(null);
+  // const pauseTimeRef = useRef<number | null>(null);
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const containerRef = useRef<HTMLDivElement>(null);
-  const progressIntervalRef = useRef<number | null>(null);
-  const pitchShiftRef = useRef<Tone.PitchShift | null>(null);
+  // const progressIntervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    console.log("Initializing audio context and Tone.js");
-    audioContextRef.current = new (window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext })
-        .webkitAudioContext)();
-    
-    mergerNodeRef.current = audioContextRef.current.createChannelMerger(
-      selectedTrack.subTracks.length
-    );
-    masterGainNodeRef.current = audioContextRef.current.createGain();
-    
-    // Initialize Tone.js PitchShift
-    Tone.setContext(audioContextRef.current);
-    pitchShiftRef.current = new Tone.PitchShift().toDestination();
-    
-    if (mergerNodeRef.current && masterGainNodeRef.current && pitchShiftRef.current) {
-      mergerNodeRef.current.connect(masterGainNodeRef.current);
-      masterGainNodeRef.current.connect(pitchShiftRef.current.input);
-    }
-
-    return () => {
-      console.log("Cleaning up audio context and Tone.js");
-      audioContextRef.current?.close();
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
+    const loadAudio = async () => {
+      for (const subTrack of selectedTrack.subTracks) {
+        const player = new Tone.Player({
+          url: subTrack.file,
+          loop: true,
+        }).toDestination();
+  
+        // Add a PitchShift effect
+        const pitchShift = new Tone.PitchShift().toDestination();
+        player.connect(pitchShift);
+  
+        tonePlayersRef.current[subTrack.id] = player;
       }
-      pitchShiftRef.current?.dispose();
     };
-  }, [selectedTrack.subTracks.length]);
+  
+    loadAudio();
+  
+    return () => {
+      Tone.Transport.stop();
+      Object.values(tonePlayersRef.current).forEach(player => player.stop());
+    };
+  }, [selectedTrack]);
+  
 
   useEffect(() => {
     const initialVolumes: Record<string, number> = {};
@@ -143,13 +161,13 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
 
       const handleLoadedMetadata = () => {
         updateDuration();
-        setIsMediaReady(true);
-        console.log(`Video ${selectedVideo.id} metadata loaded`);
+        setIsMediaReady(true); // Set media as ready when metadata is loaded
       };
 
       video.addEventListener("loadedmetadata", handleLoadedMetadata);
       video.addEventListener("timeupdate", updateProgress);
 
+      // Initialize progress and duration
       setProgress(0);
       setDuration(video.duration || 0);
 
@@ -161,41 +179,80 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   }, [selectedVideo]);
 
   useEffect(() => {
-    const loadVideoWithCache = async () => {
-      const videoUrlBlob = await loadVideo(selectedVideo.file);
-
-      if (videoUrlBlob) {
-        const videoElement = videoRefs.current[selectedVideo.id];
-        if (videoElement) {
-          videoElement.src = videoUrlBlob;
-          videoElement.addEventListener(
-            "loadedmetadata",
-            () => {
-              setVideosReady((prev) => ({ ...prev, [selectedVideo.id]: true }));
-              console.log(`Video ${selectedVideo.id} ready`);
-            },
-            { once: true }
-          );
+    const loadMedia = async () => {
+      const videoPromises = selectedTrack.videos.map(async (video) => {
+        const videoUrlBlob = await loadVideo(video.file);
+        if (videoUrlBlob) {
+          const videoElement = videoRefs.current[video.id];
+          if (videoElement) {
+            videoElement.src = videoUrlBlob;
+            return new Promise<void>((resolve) => {
+              videoElement.addEventListener(
+                "loadedmetadata",
+                () => {
+                  setVideosReady((prev) => ({ ...prev, [video.id]: true }));
+                  resolve();
+                },
+                { once: true }
+              );
+            });
+          }
+        } else {
+          console.error("Failed to load video");
         }
-      } else {
-        console.error("Failed to load video");
-      }
+      });
+    
+      const audioPromises = selectedTrack.subTracks.map(async (subTrack) => {
+        console.log(`Loading subtrack: ${subTrack.file}`);  // Debug log to check if subtrack is loading
+        await loadAudio(subTrack.file, subTrack.id); // Use the new loadAudio function
+      });
+    
+      await Promise.all([...videoPromises, ...audioPromises]);
+      setIsBuffering(false);
+      setAllMediaLoaded(true); // Set all media as loaded
     };
-
-    loadVideoWithCache();
-  }, [selectedVideo]);
-
-  const loadAudio = async (file: string) => {
-    console.log(`Loading audio file: ${file}`);
-    const response = await fetch(file);
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await audioContextRef.current!.decodeAudioData(arrayBuffer);
-    console.log(`Audio file loaded: ${file}`);
-    return audioBuffer;
+    
+  
+    loadMedia();
+  }, [selectedTrack]);
+  const checkAllAudioLoaded = () => {
+    const allLoaded = Object.values(tonePlayersRef.current).every(
+      (player) => player.loaded
+    );
+  
+    if (allLoaded) {
+      console.log("All subtracks are loaded. You can play now.");
+      setAllMediaLoaded(true); // This flag enables the play button
+    }
   };
-
+  
+  const loadAudio = async (file: string, id: string) => {
+    try {
+      const player = new Tone.Player({
+        url: file,
+        loop: true,
+        onload: () => {
+          console.log(`Subtrack ${file} loaded successfully`);
+          checkAllAudioLoaded();  // Check if all players are loaded
+        },
+        onerror: (error) => {
+          console.error(`Error loading subtrack ${file}:`, error);
+        },
+      }).toDestination();
+  
+      // Add pitch shift effect to the player
+      const pitchShift = new Tone.PitchShift().toDestination();
+      player.connect(pitchShift);
+  
+      tonePlayersRef.current[id] = player;
+    } catch (error) {
+      console.error(`Error loading audio file for subtrack ${id}:`, error);
+    }
+  };
+  
+  
+  
   const loadVideo = async (videoUrl: string) => {
-    console.log(`Loading video: ${videoUrl}`);
     let videoBlob = await getMediaFromIndexedDB(videoUrl);
 
     if (!videoBlob) {
@@ -207,13 +264,10 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
         const blob = await response.blob();
         await saveMediaToIndexedDB(videoUrl, blob);
         videoBlob = blob;
-        console.log(`Video cached: ${videoUrl}`);
       } catch (error) {
         console.error("Error fetching video:", error);
         return null;
       }
-    } else {
-      console.log(`Video loaded from cache: ${videoUrl}`);
     }
 
     if (videoBlob) {
@@ -225,119 +279,93 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   };
 
   const playAudio = async () => {
-    if (!audioContextRef.current || !mergerNodeRef.current || !masterGainNodeRef.current) return;
-
-    console.log("Playing audio");
-    Object.values(sourceNodesRef.current).forEach((node) => {
-      try {
-        node.stop();
-      } catch (error) {
-        console.warn("Failed to stop node:", error);
-      }
-    });
-    sourceNodesRef.current = {};
-    gainNodesRef.current = {};
-
-    for (const subTrack of selectedTrack.subTracks) {
-      const audioBuffer = await loadAudio(subTrack.file);
-      const sourceNode = audioContextRef.current.createBufferSource();
-      const gainNode = audioContextRef.current.createGain();
-      sourceNode.buffer = audioBuffer;
-      sourceNode.connect(gainNode);
-
-      gainNode.connect(mergerNodeRef.current, 0, 0);
-      gainNode.connect(mergerNodeRef.current, 0, 1);
-
-      sourceNode.playbackRate.value = playbackRate;
-      gainNode.gain.value = subTrackVolumes[subTrack.id] * masterVolume;
-      sourceNodesRef.current[subTrack.id] = sourceNode;
-      gainNodesRef.current[subTrack.id] = gainNode;
+    await Tone.start(); // Ensure audio context is started
+  
+    // Check if all audio files are loaded before starting playback
+    const allPlayersLoaded = Object.values(tonePlayersRef.current).every(
+      (player) => player.loaded
+    );
+  
+    if (!allPlayersLoaded) {
+      console.error("Not all audio files are loaded yet. Please wait.");
+      return;
     }
-
-    masterGainNodeRef.current.gain.value = masterVolume;
-
-    const currentTime = audioContextRef.current.currentTime;
-    startTimeRef.current = currentTime;
-    pauseTimeRef.current = null;
-
-    const startOffset = progress * duration;
-    if (isFinite(startOffset)) {
-      Object.values(sourceNodesRef.current).forEach((node) =>
-        node.start(currentTime, startOffset)
-      );
-      Object.values(videoRefs.current).forEach((video) => {
-        if (video) {
-          video.currentTime = startOffset;
-          video.play();
-        }
-      });
-
-      setIsPlaying(true);
-      console.log(`Playback started at offset: ${startOffset}`);
-    } else {
-      console.error("Invalid start offset:", startOffset);
-    }
-  };
-
-  const pauseAudio = () => {
-    if (!audioContextRef.current || !isPlaying) return;
-
-    console.log("Pausing audio");
-    pauseTimeRef.current = audioContextRef.current.currentTime - (startTimeRef.current || 0);
-    Object.values(sourceNodesRef.current).forEach((node) => {
-      try {
-        node.stop();
-      } catch (error) {
-        console.warn("Failed to stop node:", error);
-      }
+  
+    // Sync each audio player with Tone.Transport and start it
+    Object.values(tonePlayersRef.current).forEach((player) => {
+      player.sync().start(0);  // Sync with Tone.Transport and start at 0 seconds
     });
+  
+    // Start the Tone.Transport
+    Tone.Transport.start();
+  
+    // Sync videos with Tone.Transport
     Object.values(videoRefs.current).forEach((video) => {
+      if (video) {
+        video.currentTime = Tone.Transport.seconds;
+        video.play();
+      }
+    });
+  
+    setIsPlaying(true);
+  };
+  
+  
+  
+  const pauseAudio = () => {
+    // Pause audio
+    Tone.Transport.pause();
+  
+    // Pause videos
+    Object.values(videoRefs.current).forEach(video => {
       if (video) {
         video.pause();
       }
     });
-
+  
     setIsPlaying(false);
   };
+  
 
   const togglePlayPause = () => {
     if (isPlaying) {
+      // Pause audio and stop progress tracking
       pauseAudio();
     } else {
+      // Play audio and start progress tracking
       playAudio();
     }
   };
 
-  const handleSpeedChange = (newSpeed: number) => {
-    console.log(`Changing playback speed to: ${newSpeed}`);
-    setPlaybackRate(newSpeed);
-    Object.values(sourceNodesRef.current).forEach((node) => {
-      node.playbackRate.value = newSpeed;
-    });
-    Object.values(videoRefs.current).forEach((video) => {
-      if (video) {
-        video.playbackRate = newSpeed;
-      }
-    });
+const handleSpeedChange = (newSpeed: number) => {
+  setPlaybackRate(newSpeed);
+  
+  // Update the playback rate for all audio players
+  Tone.Transport.bpm.value = 120 * newSpeed;  // Assuming 120 is the default BPM
+  Object.values(tonePlayersRef.current).forEach((player) => {
+    player.playbackRate = newSpeed;  // Change the audio speed without affecting the pitch
+  });
 
-    // Adjust pitch based on playback speed
-    if (pitchShiftRef.current) {
-      const pitchAdjustment = Math.log2(newSpeed) * 12; // Convert speed ratio to semitones
-      pitchShiftRef.current.pitch = pitchAdjustment;
-      console.log(`Pitch adjustment: ${pitchAdjustment} semitones`);
+  // Update the playback rate for the videos
+  Object.values(videoRefs.current).forEach((video) => {
+    if (video) {
+      video.playbackRate = newSpeed;
     }
-  };
+  });
+};
+
 
   const handleMasterVolumeChange = (newVolume: number) => {
-    console.log(`Changing master volume to: ${newVolume}`);
     setMasterVolume(newVolume);
     if (masterGainNodeRef.current) {
       masterGainNodeRef.current.gain.value = newVolume;
     }
   };
 
-  const handleSubTrackVolumeChange = (subTrackId: string, newVolume: number) => {
-    console.log(`Changing volume for subtrack ${subTrackId} to: ${newVolume}`);
+  const handleSubTrackVolumeChange = (
+    subTrackId: string,
+    newVolume: number
+  ) => {
     setSubTrackVolumes((prev) => ({ ...prev, [subTrackId]: newVolume }));
     if (gainNodesRef.current[subTrackId]) {
       gainNodesRef.current[subTrackId].gain.value = newVolume * masterVolume;
@@ -345,7 +373,6 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   };
 
   const switchVideo = async (videoId: string) => {
-    console.log(`Switching to video: ${videoId}`);
     const currentVideo = videoRefs.current[selectedVideo.id];
     const newVideo = selectedTrack.videos.find((v) => v.id === videoId);
 
@@ -363,7 +390,10 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
             () => {
               newVideoElement.currentTime = currentTime;
               setProgress(currentTime / newVideoElement.duration);
-              console.log(`New video ${videoId} duration:`, newVideoElement.duration);
+              console.log(
+                `Duration of new video ${videoId}:`,
+                newVideoElement.duration
+              );
               if (isPlaying) {
                 newVideoElement.play();
               }
@@ -380,15 +410,12 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       containerRef.current?.requestFullscreen();
-      console.log("Entering fullscreen mode");
     } else {
       document.exitFullscreen();
-      console.log("Exiting fullscreen mode");
     }
   };
 
   const handleProgressChange = (newProgress: number) => {
-    console.log(`Changing progress to: ${newProgress}`);
     setProgress(newProgress);
     const video = videoRefs.current[selectedVideo.id];
     if (video) {
@@ -401,7 +428,7 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   };
 
   const formatTime = (timeInSeconds: number) => {
-    const minutes =   Math.floor(timeInSeconds / 60);
+    const minutes = Math.floor(timeInSeconds / 60);
     const seconds = Math.floor(timeInSeconds % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
@@ -409,7 +436,9 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-screen bg-black overflow-hidden"
+      className={`relative w-full h-screen bg-black overflow-hidden ${
+        isBuffering ? "pointer-events-none opacity-50" : ""
+      }`}
     >
       {selectedTrack.videos.map((video) => (
         <video
@@ -452,7 +481,11 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
               onClick={togglePlayPause}
               variant="outline"
               size="icon"
-              disabled={!isMediaReady || !videosReady[selectedVideo.id]}
+              disabled={
+                !isMediaReady ||
+                !videosReady[selectedVideo.id] ||
+                !allMediaLoaded
+              } // Disable until all media is loaded
             >
               {isPlaying ? (
                 <PauseIcon className="h-6 w-6" />
@@ -476,7 +509,7 @@ const AdvancedSyncedPlayer: React.FC<AdvancedSyncedPlayerProps> = ({
               <Slider
                 className="w-48"
                 min={0}
-                max={1.5}
+                max={2}
                 step={0.25}
                 value={[playbackRate]}
                 onValueChange={([value]) => {

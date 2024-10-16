@@ -102,7 +102,6 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isReady, setIsReady] = useState(false);
-  const [videoProgress, setVideoProgress] = useState<Record<string, number>>({}); // To store the progress in ms for each video
 
   const howlsRef = useRef<{ [key: string]: Howl }>({});
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
@@ -122,7 +121,7 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
     });
     setSubTrackVolumes(initialVolumes);
 
-    // Load Howl instances for each subTrack (audio)
+    // Load Howl instances for each subTrack
     let audioReadyCount = 0;
     const totalAudioTracks = selectedTrack.subTracks.length;
 
@@ -133,52 +132,16 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
         preload: true,
         onload: () => {
           audioReadyCount++;
-          console.log(`${subTrack.name} audio loaded`);
           if (audioReadyCount === totalAudioTracks) {
             setMediaLoaded((prev) => ({ ...prev, audio: true }));
-            console.log("All audio files are loaded");
           }
         },
       });
       howlsRef.current[subTrack.id] = howl;
     });
 
-    // Load video progress and metadata
-    selectedTrack.videos.forEach((video) => {
-      const videoElement = videoRefs.current[video.id];
-      if (videoElement) {
-        console.log(`Starting to load video: ${video.name}`);
-
-        const updateDuration = () => {
-          console.log(`Video metadata loaded for: ${video.name}`);
-          setMediaLoaded((prev) => ({ ...prev, video: true }));
-        };
-
-        const logLoadProgress = () => {
-          if (videoElement.buffered.length > 0) {
-            const bufferedEnd = videoElement.buffered.end(
-              videoElement.buffered.length - 1
-            );
-            const bufferMs = bufferedEnd * 1000; // Convert to milliseconds
-            setVideoProgress((prevProgress) => ({
-              ...prevProgress,
-              [video.id]: bufferMs,
-            }));
-          }
-        };
-
-        videoElement.addEventListener("loadedmetadata", updateDuration);
-        videoElement.addEventListener("progress", logLoadProgress);
-
-        return () => {
-          videoElement.removeEventListener("loadedmetadata", updateDuration);
-          videoElement.removeEventListener("progress", logLoadProgress);
-        };
-      }
-    });
-
-    // Cleanup Howl instances when the component unmounts
     return () => {
+      // Unload all Howl instances when component unmounts
       Object.values(howlsRef.current).forEach((howl) => howl.unload());
     };
   }, [selectedTrack]);
@@ -186,10 +149,7 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
   useEffect(() => {
     const video = videoRefs.current[selectedVideo.id];
     if (video) {
-      console.log(`Starting to load video: ${selectedVideo.name}`);
-
       const updateDuration = () => {
-        console.log(`Video metadata loaded for: ${selectedVideo.name}`);
         setDuration(video.duration || 0);
         setMediaLoaded((prev) => ({ ...prev, video: true }));
       };
@@ -210,10 +170,8 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
 
   // Enable play button only when both audio and video are loaded
   useEffect(() => {
-    console.log("Current mediaLoaded state:", mediaLoaded);
     if (mediaLoaded.audio && mediaLoaded.video) {
       setIsReady(true);
-      console.log("All media (audio and video) are fully loaded and ready to play.");
     }
   }, [mediaLoaded]);
 
@@ -283,38 +241,10 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
     }
   };
 
-  const switchVideo = async (videoId: string) => {
-    const currentVideo = videoRefs.current[selectedVideo.id];
+  const switchVideo = (videoId: string) => {
     const newVideo = selectedTrack.videos.find((v) => v.id === videoId);
-
-    if (newVideo && currentVideo) {
-      try {
-        currentVideo.pause();
-        const currentTime = currentVideo.currentTime;
-        setSelectedVideo(newVideo);
-
-        const newVideoElement = videoRefs.current[videoId];
-        if (newVideoElement) {
-          newVideoElement.currentTime = currentTime;
-          newVideoElement.addEventListener(
-            "loadedmetadata",
-            () => {
-              newVideoElement.currentTime = currentTime;
-              setProgress(currentTime / newVideoElement.duration);
-              // console.log(
-              //   Duration of new video ${videoId}:,
-              //   newVideoElement.duration
-              // );
-              if (isPlaying) {
-                newVideoElement.play();
-              }
-            },
-            { once: true }
-          );
-        }
-      } catch (error) {
-        console.error("Error during video switch:", error);
-      }
+    if (newVideo) {
+      setSelectedVideo(newVideo);
     }
   };
 
@@ -363,59 +293,84 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-screen bg-black overflow-hidden">
-      {selectedTrack.videos.map((video, index) => (
-        <div key={video.id} style={{ marginBottom: "20px", position: "relative" }}>
-          <video
-            ref={(el) => {
-              videoRefs.current[video.id] = el;
-            }}
-            src={video.file}
-            style={{ width: "100%", height: "auto" }}
-            controls
-            playsInline
-          />
-          {/* Overlay for showing buffered progress in ms */}
-          <div
-            style={{
-              position: "absolute",
-              top: "10px",
-              left: "10px",
-              background: index === 0 ? "rgba(255, 0, 0, 0.7)" : index === 1 ? "rgba(0, 255, 0, 0.7)" : "rgba(0, 0, 255, 0.7)", // Color-code based on index
-              color: "white",
-              padding: "5px 10px",
-              borderRadius: "5px",
-            }}
-          >
-            {`Buffered: ${videoProgress[video.id]?.toFixed(0) || 0} ms`}
-          </div>
-        </div>
+    <div
+      ref={containerRef}
+      className="relative w-full h-screen bg-black overflow-hidden"
+    >
+      {selectedTrack.videos.map((video) => (
+        <video
+          key={video.id}
+          ref={(el) => {
+            videoRefs.current[video.id] = el;
+          }}
+          src={video.file}
+          className={`absolute inset-0 w-full h-full object-cover ${
+            video.id === selectedVideo.id ? "block" : "hidden"
+          }`}
+          playsInline
+        />
       ))}
 
       <div
-        className={`absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"}`}
+        className={`absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-300 ${
+          showControls ? "opacity-100" : "opacity-0"
+        }`}
         onMouseEnter={() => setShowControls(true)}
         onMouseLeave={() => setShowControls(false)}
       >
         <div className="absolute bottom-0 left-0 right-0 p-4 space-y-4">
           <div className="flex items-center space-x-2">
-            <span className="text-white text-sm">{formatTime(progress * duration)}</span>
-            <Slider className="flex-1" min={0} max={1} step={0.001} value={[progress]} onValueChange={([value]) => handleProgressChange(value)} />
+            <span className="text-white text-sm">
+              {formatTime(progress * duration)}
+            </span>
+            <Slider
+              className="flex-1"
+              min={0}
+              max={1}
+              step={0.001}
+              value={[progress]}
+              onValueChange={([value]) => handleProgressChange(value)}
+            />
             <span className="text-white text-sm">{formatTime(duration)}</span>
           </div>
 
           <div className="flex items-center space-x-4">
-            <Button onClick={togglePlayPause} variant="outline" size="icon" disabled={!isReady}>
-              {isPlaying ? <PauseIcon className="h-6 w-6" /> : <PlayIcon className="h-6 w-6" />}
+            <Button
+              onClick={togglePlayPause}
+              variant="outline"
+              size="icon"
+              disabled={!isReady} // Disable play button until media is ready
+            >
+              {isPlaying ? (
+                <PauseIcon className="h-6 w-6" />
+              ) : (
+                <PlayIcon className="h-6 w-6" />
+              )}
             </Button>
             <div className="flex items-center space-x-2 flex-1">
               <Volume2Icon className="h-4 w-4 text-white" />
-              <Slider className="w-24" min={0} max={1} step={0.01} value={[masterVolume]} onValueChange={([value]) => handleMasterVolumeChange(value)} />
+              <Slider
+                className="w-24"
+                min={0}
+                max={1}
+                step={0.01}
+                value={[masterVolume]}
+                onValueChange={([value]) => handleMasterVolumeChange(value)}
+              />
             </div>
             <Snail className="size-4 text-white" />
             <div className="flex gap-x-2">
-              <Slider className="w-48" min={0.25} max={2} step={0.25} value={[playbackRate]} onValueChange={([value]) => handleSpeedChange(value)} />
-              <span className="w-10 text-sm text-white text-center">{playbackRate.toFixed(2) + "x"}</span>
+              <Slider
+                className="w-48"
+                min={0.25}
+                max={2}
+                step={0.25}
+                value={[playbackRate]}
+                onValueChange={([value]) => handleSpeedChange(value)}
+              />
+              <span className="w-10 text-sm text-white text-center">
+                {playbackRate.toFixed(2) + "x"}
+              </span>
             </div>
             <Button onClick={toggleFullscreen} variant="outline" size="icon">
               <ExpandIcon className="h-6 w-6" />
@@ -423,7 +378,12 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
           </div>
 
           <div className="flex space-x-4">
-            <Select value={selectedTrack.id} onValueChange={(value) => setSelectedTrack(tracks.find((t) => t.id === value)!)}>
+            <Select
+              value={selectedTrack.id}
+              onValueChange={(value) =>
+                setSelectedTrack(tracks.find((t) => t.id === value)!)
+              }
+            >
               <SelectTrigger className="w-[180px] bg-white/10 border-white/20 text-white">
                 <SelectValue placeholder="Select a track" />
               </SelectTrigger>
@@ -438,7 +398,14 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
 
             <div className="flex space-x-2">
               {selectedTrack.videos.map((video) => (
-                <Button key={video.id} variant={video.id === selectedVideo.id ? "default" : "outline"} onClick={() => switchVideo(video.id)} size="sm">
+                <Button
+                  key={video.id}
+                  variant={
+                    video.id === selectedVideo.id ? "default" : "outline"
+                  }
+                  onClick={() => switchVideo(video.id)}
+                  size="sm"
+                >
                   {video.name}
                 </Button>
               ))}
@@ -446,7 +413,10 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
           </div>
           <div className="flex space-x-4 bg-black/50 p-4 rounded-lg w-max">
             {selectedTrack.subTracks.map((subTrack) => (
-              <div key={subTrack.id} className="flex flex-col items-center space-y-2">
+              <div
+                key={subTrack.id}
+                className="flex flex-col items-center space-y-2"
+              >
                 <label htmlFor={subTrack.id} className="text-white text-sm">
                   {subTrack.name}
                 </label>
@@ -457,16 +427,22 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
                   max={1}
                   step={0.01}
                   value={[subTrackVolumes[subTrack.id] || 0]}
-                  onValueChange={([value]) => handleSubTrackVolumeChange(subTrack.id, value)}
+                  onValueChange={([value]) =>
+                    handleSubTrackVolumeChange(subTrack.id, value)
+                  }
                 />
               </div>
             ))}
           </div>
         </div>
       </div>
-      {/* <Button onClick={onBackToDashboard} className="absolute top-4 left-4 z-10" variant="outline">
+      <Button
+        onClick={onBackToDashboard}
+        className="absolute top-4 left-4 z-10"
+        variant="outline"
+      >
         Back to Dashboard
-      </Button> */}
+      </Button>
     </div>
   );
 };
