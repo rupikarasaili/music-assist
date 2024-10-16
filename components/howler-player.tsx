@@ -18,6 +18,7 @@ import {
   ExpandIcon,
   Snail,
 } from "lucide-react";
+import VideoProgressTracker from "./VideoPlayer";
 
 // Reuse the tracks data from the original component
 const tracks = [
@@ -283,38 +284,10 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
     }
   };
 
-  const switchVideo = async (videoId: string) => {
-    const currentVideo = videoRefs.current[selectedVideo.id];
+  const switchVideo = (videoId: string) => {
     const newVideo = selectedTrack.videos.find((v) => v.id === videoId);
-
-    if (newVideo && currentVideo) {
-      try {
-        currentVideo.pause();
-        const currentTime = currentVideo.currentTime;
-        setSelectedVideo(newVideo);
-
-        const newVideoElement = videoRefs.current[videoId];
-        if (newVideoElement) {
-          newVideoElement.currentTime = currentTime;
-          newVideoElement.addEventListener(
-            "loadedmetadata",
-            () => {
-              newVideoElement.currentTime = currentTime;
-              setProgress(currentTime / newVideoElement.duration);
-              // console.log(
-              //   Duration of new video ${videoId}:,
-              //   newVideoElement.duration
-              // );
-              if (isPlaying) {
-                newVideoElement.play();
-              }
-            },
-            { once: true }
-          );
-        }
-      } catch (error) {
-        console.error("Error during video switch:", error);
-      }
+    if (newVideo) {
+      setSelectedVideo(newVideo);
     }
   };
 
@@ -376,20 +349,12 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
             playsInline
           />
           {/* Overlay for showing buffered progress in ms */}
-          <div
-            style={{
-              position: "absolute",
-              top: "10px",
-              left: "10px",
-              background: index === 0 ? "rgba(255, 0, 0, 0.7)" : index === 1 ? "rgba(0, 255, 0, 0.7)" : "rgba(0, 0, 255, 0.7)", // Color-code based on index
-              color: "white",
-              padding: "5px 10px",
-              borderRadius: "5px",
-            }}
-          >
-            {`Buffered: ${videoProgress[video.id]?.toFixed(0) || 0} ms`}
+          <VideoProgressTracker
+            videoRef={videoRefs.current[video.id]}
+            videoKey={video.id}
+            onProgressUpdate={(progress) => updateVideoProgress(video.id, progress)}
+          />
           </div>
-        </div>
       ))}
 
       <div
