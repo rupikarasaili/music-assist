@@ -19,6 +19,8 @@ import {
   Snail,
 } from "lucide-react";
 import VideoProgressTracker from "./VideoPlayer";
+import { Loader2 } from "lucide-react"; // Import a loading icon
+
 
 // Reuse the tracks data from the original component
 const tracks = [
@@ -103,7 +105,8 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isReady, setIsReady] = useState(false);
-  const [videoProgress, setVideoProgress] = useState<Record<string, number>>({}); // To store the progress in ms for each video
+  const [videoProgress, setVideoProgress] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   const howlsRef = useRef<{ [key: string]: Howl }>({});
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
@@ -122,11 +125,11 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
       initialVolumes[subTrack.id] = 1;
     });
     setSubTrackVolumes(initialVolumes);
-
+  
     // Load Howl instances for each subTrack (audio)
     let audioReadyCount = 0;
     const totalAudioTracks = selectedTrack.subTracks.length;
-
+  
     selectedTrack.subTracks.forEach((subTrack) => {
       const howl = new Howl({
         src: [subTrack.file],
@@ -143,18 +146,18 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
       });
       howlsRef.current[subTrack.id] = howl;
     });
-
+  
     // Load video progress and metadata
     selectedTrack.videos.forEach((video) => {
       const videoElement = videoRefs.current[video.id];
       if (videoElement) {
         console.log(`Starting to load video: ${video.name}`);
-
+  
         const updateDuration = () => {
           console.log(`Video metadata loaded for: ${video.name}`);
           setMediaLoaded((prev) => ({ ...prev, video: true }));
         };
-
+  
         const logLoadProgress = () => {
           if (videoElement.buffered.length > 0) {
             const bufferedEnd = videoElement.buffered.end(
@@ -167,20 +170,30 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
             }));
           }
         };
-
+  
         videoElement.addEventListener("loadedmetadata", updateDuration);
         videoElement.addEventListener("progress", logLoadProgress);
-
+  
         return () => {
           videoElement.removeEventListener("loadedmetadata", updateDuration);
           videoElement.removeEventListener("progress", logLoadProgress);
         };
       }
     });
-
-    // Cleanup Howl instances when the component unmounts
+  
+    // Set loading state
+    setIsLoading(true);
+    setIsReady(false);
+  
+    // Cleanup function
     return () => {
+      // Unload Howl instances when the component unmounts or selectedTrack changes
       Object.values(howlsRef.current).forEach((howl) => howl.unload());
+      
+      // Reset loading states
+      setIsLoading(true);
+      setIsReady(false);
+      setMediaLoaded({ audio: false, video: false });
     };
   }, [selectedTrack]);
 
@@ -219,7 +232,10 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
   }, [mediaLoaded]);
 
   const playAudio = () => {
+    const startTime = videoRefs.current[selectedVideo.id]?.currentTime || 0;
+
     Object.entries(howlsRef.current).forEach(([subTrackId, howl]) => {
+      howl.seek(startTime);
       howl.rate(playbackRate);
       howl.volume(subTrackVolumes[subTrackId] * masterVolume);
       howl.play();
@@ -227,6 +243,7 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
 
     Object.values(videoRefs.current).forEach((video) => {
       if (video) {
+        video.currentTime = startTime;
         video.playbackRate = playbackRate;
         video.play();
       }
@@ -334,28 +351,43 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
     const seconds = Math.floor(timeInSeconds % 60);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
+  const updateVideoProgress = (progress: number) => {
+    setVideoProgress(progress);
+  };
 
   return (
     <div ref={containerRef} className="relative w-full h-screen bg-black overflow-hidden">
-      {selectedTrack.videos.map((video, index) => (
-        <div key={video.id} style={{ marginBottom: "20px", position: "relative" }}>
-          <video
-            ref={(el) => {
-              videoRefs.current[video.id] = el;
-            }}
-            src={video.file}
-            style={{ width: "100%", height: "auto" }}
-            controls
-            playsInline
-          />
-          {/* Overlay for showing buffered progress in ms */}
-          <VideoProgressTracker
-            videoRef={videoRefs.current[video.id]}
-            videoKey={video.id}
-            onProgressUpdate={(progress) => updateVideoProgress(video.id, progress)}
-          />
-          </div>
+         {selectedTrack.videos.map((video) => (
+        <video
+          key={video.id}
+          ref={(el) => {
+            videoRefs.current[video.id] = el;
+          }}
+          src={video.file}
+          className={`absolute inset-0 w-full h-full object-cover ${
+            video.id === selectedVideo.id ? "block" : "hidden"
+          }`}
+          playsInline
+        />
       ))}
+      <VideoProgressTracker
+        videoRef={videoRefs.current[selectedVideo.id]}
+        audioRef={howlsRef.current[selectedTrack.subTracks[0].id]} // Assuming the first subTrack is the main audio
+        videoKey={selectedVideo.id}
+        onProgressUpdate={updateVideoProgress}
+      />
+      
+      {/* Display the current playback time */}
+      <div className="absolute top-2 right-2 bg-black/50 text-white text-sm px-2 py-1 rounded z-10">
+        {isLoading ? (
+          <span className="flex items-center">
+            <Loader2 className="animate-spin mr-2" size={16} />
+            Loading...
+          </span>
+        ) : (
+          `${Math.floor(videoProgress)} ms`
+        )}
+      </div>
 
       <div
         className={`absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"}`}
@@ -370,8 +402,19 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
           </div>
 
           <div className="flex items-center space-x-4">
-            <Button onClick={togglePlayPause} variant="outline" size="icon" disabled={!isReady}>
-              {isPlaying ? <PauseIcon className="h-6 w-6" /> : <PlayIcon className="h-6 w-6" />}
+          <Button 
+              onClick={togglePlayPause} 
+              variant="outline" 
+              size="icon" 
+              disabled={!isReady}
+            >
+              {isPlaying ? (
+                <PauseIcon className="h-6 w-6" />
+              ) : isLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <PlayIcon className="h-6 w-6" />
+              )}
             </Button>
             <div className="flex items-center space-x-2 flex-1">
               <Volume2Icon className="h-4 w-4 text-white" />
