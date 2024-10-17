@@ -19,7 +19,7 @@ import {
   Snail,
 } from "lucide-react";
 import VideoProgressTracker from "./VideoPlayer";
-import { Loader2 } from "lucide-react"; // Import a loading icon
+// import { Loader2 } from "lucide-react"; // Import a loading icon
 
 
 // Reuse the tracks data from the original component
@@ -32,14 +32,14 @@ const tracks = [
         id: "v1",
         name: "Bass Cam",
         file: encodeURI(
-          "https://creativearstorage.blob.core.windows.net/webmfiles/Happy Bass 1 Scroll score.webm"
+          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Happy Bass 1 Scroll score.webm"
         ),
       },
       {
         id: "v2",
         name: "Score Cam",
         file: encodeURI(
-          "https://creativearstorage.blob.core.windows.net/webmfiles/Happy Video Bass 1.webm"
+          "https://creativearstorage.blob.core.windows.net/videoaudiofiles/Happy Video Bass 1.webm"
         ),
       },
     ],
@@ -106,7 +106,7 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [videoProgress, setVideoProgress] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(true);
+  // const [isLoading, setIsLoading] = useState(true);
 
   const howlsRef = useRef<{ [key: string]: Howl }>({});
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
@@ -182,7 +182,7 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
     });
   
     // Set loading state
-    setIsLoading(true);
+    // setIsLoading(true);
     setIsReady(false);
   
     // Cleanup function
@@ -191,7 +191,7 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
       Object.values(howlsRef.current).forEach((howl) => howl.unload());
       
       // Reset loading states
-      setIsLoading(true);
+      // setIsLoading(true);
       setIsReady(false);
       setMediaLoaded({ audio: false, video: false });
     };
@@ -379,14 +379,9 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
       
       {/* Display the current playback time */}
       <div className="absolute top-2 right-2 bg-black/50 text-white text-sm px-2 py-1 rounded z-10">
-        {isLoading ? (
-          <span className="flex items-center">
-            <Loader2 className="animate-spin mr-2" size={16} />
-            Loading...
-          </span>
-        ) : (
-          `${Math.floor(videoProgress)} ms`
-        )}
+       
+          {Math.floor(videoProgress)} ms
+        
       </div>
 
       <div
@@ -410,9 +405,7 @@ const HowlerPlayer: React.FC<HowlerPlayerProps> = ({
             >
               {isPlaying ? (
                 <PauseIcon className="h-6 w-6" />
-              ) : isLoading ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
-              ) : (
+                            ) : (
                 <PlayIcon className="h-6 w-6" />
               )}
             </Button>
