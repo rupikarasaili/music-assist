@@ -4,6 +4,7 @@ import { useState } from "react";
 import AdvancedSyncedPlayer from "@/components/advanced-synced-player";
 import Dashboard from "@/components/dashboard";
 import HowlerPlayer from "@/components/howler-player";
+import AdvancedSyncedPlayerAudio from "@/components/advanced-synced-player-audio";
 
 export default function Home() {
   const [showPlayer, setShowPlayer] = useState(false);
@@ -24,7 +25,8 @@ export default function Home() {
         <Dashboard onGoToPlayer={handleGoToPlayer} />
       )} */}
 
-      <HowlerPlayer />
+      {/* <HowlerPlayer /> */}
+      <AdvancedSyncedPlayerAudio />
     </main>
   );
 }
